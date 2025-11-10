@@ -1,5 +1,6 @@
 const SupportTicket = require("../models/supportTicket");
 const sendEmail = require("../utils/sendemail");
+const User = require("../models/user");  
 
 // 🧾 Create Ticket (User)
 exports.createTicket = async (req, res) => {
@@ -19,6 +20,7 @@ exports.createTicket = async (req, res) => {
 
     await ticket.save();
 
+    // 📧 Email to User
     await sendEmail(
       req.user.email,
       "Support Ticket Received",
@@ -27,17 +29,47 @@ exports.createTicket = async (req, res) => {
        Our team will get back to you shortly. Thank you for contacting support.`
     );
 
+    // 🧑‍💼 Fetch ALL admins (based on your DB structure)
+    const admins = await User.find({ role: "admin" });
+
+    // 📧 Email every admin
+    for (const admin of admins) {
+      await sendEmail(
+        admin.email,
+        "New Support Ticket Created",
+        `A new support ticket has been submitted:
+
+User: ${req.user.firstName} ${req.user.lastName} (${req.user.email})
+Subject: ${subject}
+Priority: ${Priority}
+
+Please log in to the dashboard to review and respond.`
+      );
+    }
+
     res.status(201).json({ message: "Support ticket created successfully.", ticket });
   } catch (error) {
     console.error("Error creating ticket:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
 // 🧾 Get All Tickets (Admin)
 exports.getAllTickets = async (req, res) => {
   try {
-    const tickets = await SupportTicket.find()
+    // Accept optional query params: ?priority=high&status=closed
+    const { priority, status } = req.query;
+
+    const filter = {};
+    if (priority) {
+      // Match priority case-insensitively (field stored as 'Priority')
+      filter.Priority = { $regex: `^${priority}$`, $options: "i" };
+    }
+    if (status) {
+      // Match status case-insensitively
+      filter.status = { $regex: `^${status}$`, $options: "i" };
+    }
+
+    const tickets = await SupportTicket.find(filter)
       .populate("userId", "email firstName lastName")
       .sort({ createdAt: -1 });
 
@@ -51,7 +83,18 @@ exports.getAllTickets = async (req, res) => {
 // 🧾 Get My Tickets (User)
 exports.getMyTickets = async (req, res) => {
   try {
-    const tickets = await SupportTicket.find({ userId: req.user._id })
+    // Accept optional query params: ?priority=high&status=closed
+    const { priority, status } = req.query;
+
+    const filter = { userId: req.user._id };
+    if (priority) {
+      filter.Priority = { $regex: `^${priority}$`, $options: "i" };
+    }
+    if (status) {
+      filter.status = { $regex: `^${status}$`, $options: "i" };
+    }
+
+    const tickets = await SupportTicket.find(filter)
       .populate("userId", "email firstName lastName")
       .sort({ createdAt: -1 });
 
@@ -86,6 +129,24 @@ exports.resolveTicket = async (req, res) => {
     res.json({ message: "Ticket resolved and email sent successfully." });
   } catch (error) {
     console.error("Error resolving ticket:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// 🗑️ Delete Ticket
+exports.deleteTicket = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const ticket = await SupportTicket.findById(id);
+    if (!ticket) return res.status(404).json({ message: "Ticket not found." });
+
+    // Use model deletion method instead of ticket.remove()
+    await SupportTicket.findByIdAndDelete(id);
+
+    res.json({ message: "Ticket deleted successfully." });
+  } catch (error) {
+    console.error("Error deleting ticket:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
