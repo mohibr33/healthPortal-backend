@@ -22,8 +22,8 @@ exports.deleteUser = async (req, res) => {
 //UPDATE: Add more admin functionalities as needed
 exports.updateUser = async (req, res) => {
   try {
-    const { firstName, lastName, phone, email, gender, role } = req.body;
-    const updatedFields = { firstName, lastName, phone, email, gender, role };
+    const { firstName, lastName, phone, email} = req.body;
+    const updatedFields = { firstName, lastName, phone, email, };
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
