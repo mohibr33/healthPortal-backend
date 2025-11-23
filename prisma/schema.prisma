@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(uuid())
+  firstName        String
+  lastName         String
+  email            String    @unique
+  password         String?
+  role             String    @default("user")
+  gender           String?
+  phone            String?
+  isVerified       Boolean   @default(false)
+  otp              String?
+  otpExpiry        DateTime?
+  googleId         String?   @unique
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  articles         Article[]
+  tickets          SupportTicket[]
+  resolvedTickets  SupportTicket[] @relation("ResolvedTickets")
+  medicines        Medicine[]
+
+  @@index([email])
+  @@index([googleId])
+}
+
+model Article {
+  id               String   @id @default(uuid())
+  title            String
+  slug             String   @unique
+  imageUrl         String?
+  category         String
+  shortDescription String
+  content          String   @db.Text
+  sourceLink        String?
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  author           User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([slug])
+  @@index([category])
+  @@index([createdBy])
+}
+
+model SupportTicket {
+  id             String       @id @default(uuid())
+  userId         String
+  subject        String       @db.VarChar(255)
+  description    String       @db.Text
+  status         TicketStatus @default(open)
+  priority       Priority     @default(Medium)
+  resolutionNote String?      @db.Text
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resolver       User?        @relation("ResolvedTickets", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([priority])
+  @@index([userId])
+}
+
+model Medicine {
+  id                        String   @id @default(uuid())
+  productId                 String   @unique
+  slug                      String   @unique
+  title                     String
+  productImage              String?
+  brand                     String?
+  usedFor                   String?
+  childCategory             String?
+  
+  // Product Details
+  howItWorks                String?  @db.Text
+  description               String?  @db.Text
+  generics                  String?
+  indication                String?  @db.Text
+  sideEffects               String?  @db.Text
+  whenNotToUse              String?  @db.Text
+  dosage                    String?  @db.Text
+  storage                   String?  @db.Text
+  precautions               String?  @db.Text
+  warning1                  String?  @db.Text
+  warning2                  String?  @db.Text
+  warning3                  String?  @db.Text
+  pregnancyCategory         String?  @db.Text
+  drugInteractions          String?  @db.Text
+  requiresPrescription      Boolean  @default(false)
+  
+  createdBy                 String
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  author                    User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@index([slug])
+  @@index([productId])
+  @@index([title])
+  @@index([usedFor])
+  @@index([generics])
+  @@index([childCategory])
+}
+
+enum Priority {
+  Low
+  Medium
+  High
+}
+
+enum TicketStatus {
+  open
+  resolved
+}
