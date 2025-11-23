@@ -32,6 +32,8 @@ model User {
   tickets          SupportTicket[]
   resolvedTickets  SupportTicket[] @relation("ResolvedTickets")
   medicines        Medicine[]
+  healthProfiles   HealthProfile[]
+  mealPlans        MealPlan[]
 
   @@index([email])
   @@index([googleId])
@@ -117,6 +119,90 @@ model Medicine {
   @@index([usedFor])
   @@index([generics])
   @@index([childCategory])
+}
+
+model HealthProfile {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  
+  // Personal Info
+  age                   Int
+  height                Float    // in cm
+  weight                Float    // in kg
+  targetWeight          Float?   // in kg
+  
+  // Health Conditions (stored as JSON array)
+  medicalConditions     Json?    // ["Diabetes Type 2", "Hypertension", etc.]
+  medications           String?  @db.Text
+  specialConditions     Json?    // ["Pregnant", "Breastfeeding", etc.]
+  
+  // Allergies & Restrictions
+  allergies             Json?    // ["Dairy", "Nuts", etc.]
+  dietaryPreference     String   // "Non-Vegetarian", "Vegetarian", etc.
+  dislikedFoods         Json?    // Array of foods to avoid
+  
+  // Lifestyle
+  activityLevel         String   // "Sedentary", "Moderately Active", etc.
+  occupation            String?
+  sleepHours            Int?
+  sleepQuality          String?
+  waterIntake           Int?     // glasses per day
+  
+  // Goals
+  primaryGoal           String   // "Weight Loss", "Muscle Building", etc.
+  timeline              String?  // "3 months", "6 months", etc.
+  mealsPerDay           Int      @default(3)
+  regionalPreference    String?  // "Punjabi", "Sindhi", etc.
+  fastingRequirements   Boolean  @default(false)
+  
+  // Practical Constraints
+  monthlyBudget         Int?     // in PKR
+  cookingSkill          String?  // "Beginner", "Intermediate", "Advanced"
+  maxPrepTime           Int?     // minutes
+  eatingOutFrequency    String?
+  city                  String?
+  
+  // Current Habits (stored as JSON)
+  currentHabits         Json?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model MealPlan {
+  id                String         @id @default(uuid())
+  userId            String
+  duration          String         // "7 days", "30 days"
+  status            MealPlanStatus @default(active)
+  
+  // User Health Profile snapshot
+  userProfileData   Json           // Complete user data at generation time
+  
+  // AI Generated Plan
+  mealPlanData      Json           // Complete meal plan JSON from AI
+  
+  // Metadata
+  totalCalories     Int
+  estimatedCost     Int            // in PKR
+  
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum MealPlanStatus {
+  active
+  completed
+  archived
 }
 
 enum Priority {

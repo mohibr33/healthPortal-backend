@@ -6,6 +6,7 @@ import adminRoutes from "./routes/admin.routes";
 import articleRoutes from "./routes/article.routes";
 import ticketRoutes from "./routes/ticket.routes";
 import medicineRoutes from "./routes/medicine.routes";
+import mealPlanRoutes from "./routes/mealPlan.routes";
 import emailService from "./utils/email.util";
 
 // Load environment variables
@@ -25,6 +26,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/articles", articleRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/medicines", medicineRoutes);
+app.use("/api/meal-planner", mealPlanRoutes);
 
 // Health check route
 app.get("/health", (_req: Request, res: Response) => {
@@ -61,6 +63,9 @@ app.listen(PORT, async () => {
   console.log(`📰 Articles API: http://localhost:${PORT}/api/articles`);
   console.log(`🎫 Tickets API: http://localhost:${PORT}/api/tickets`);
   console.log(`💊 Medicines API: http://localhost:${PORT}/api/medicines`);
+  console.log(
+    `🍽️  Meal Planner API: http://localhost:${PORT}/api/meal-planner`
+  );
 
   // Verify email service connection
   await emailService.verifyConnection();
