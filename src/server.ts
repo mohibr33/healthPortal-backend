@@ -16,7 +16,9 @@ const app: Application = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+//add cors to allow all traffic
 app.use(cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
