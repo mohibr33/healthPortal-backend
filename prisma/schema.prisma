@@ -34,6 +34,7 @@ model User {
   medicines        Medicine[]
   healthProfiles   HealthProfile[]
   mealPlans        MealPlan[]
+  reviews          Review[]
 
   @@index([email])
   @@index([googleId])
@@ -112,6 +113,7 @@ model Medicine {
   updatedAt                 DateTime @updatedAt
 
   author                    User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  reviews                   Review[]
 
   @@index([slug])
   @@index([productId])
@@ -196,6 +198,29 @@ model MealPlan {
   
   @@index([userId])
   @@index([status])
+  @@index([createdAt])
+}
+
+model Review {
+  id            String   @id @default(uuid())
+  userId        String
+  medicineId    String
+  rating        Int      // 1-5 stars
+  message       String   @db.Text
+  isApproved    Boolean  @default(false)
+  isPublished   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medicine      Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, medicineId])
+  @@index([userId])
+  @@index([medicineId])
+  @@index([rating])
+  @@index([isApproved])
+  @@index([isPublished])
   @@index([createdAt])
 }
 

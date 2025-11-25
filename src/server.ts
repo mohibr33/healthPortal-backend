@@ -7,6 +7,7 @@ import articleRoutes from "./routes/article.routes";
 import ticketRoutes from "./routes/ticket.routes";
 import medicineRoutes from "./routes/medicine.routes";
 import mealPlanRoutes from "./routes/mealPlan.routes";
+import reviewRoutes from "./routes/review.routes";
 import emailService from "./utils/email.util";
 
 // Load environment variables
@@ -29,6 +30,7 @@ app.use("/api/articles", articleRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/medicines", medicineRoutes);
 app.use("/api/meal-planner", mealPlanRoutes);
+app.use("/api/reviews", reviewRoutes);
 
 // Health check route
 app.get("/health", (_req: Request, res: Response) => {
@@ -68,6 +70,7 @@ app.listen(PORT, async () => {
   console.log(
     `🍽️  Meal Planner API: http://localhost:${PORT}/api/meal-planner`
   );
+  console.log(`⭐ Reviews API: http://localhost:${PORT}/api/reviews`);
 
   // Verify email service connection
   await emailService.verifyConnection();

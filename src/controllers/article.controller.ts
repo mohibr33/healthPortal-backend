@@ -53,10 +53,16 @@ class ArticleController {
 
       const result = await articleService.getAllArticles(skip, limit, category);
 
+      // Transform author object to string
+      const transformedArticles = result.articles.map((article) => ({
+        ...article,
+        author: `${article.author.firstName} ${article.author.lastName}`,
+      }));
+
       return res.status(200).json({
         success: true,
         data: {
-          articles: result.articles,
+          articles: transformedArticles,
           pagination: {
             total: result.total,
             page,
@@ -89,9 +95,15 @@ class ArticleController {
         });
       }
 
+      // Transform author object to string
+      const transformedArticle = {
+        ...article,
+        author: `${article.author.firstName} ${article.author.lastName}`,
+      };
+
       return res.status(200).json({
         success: true,
-        data: { article },
+        data: { article: transformedArticle },
       });
     } catch (error: any) {
       console.error("Get article by slug error:", error);
@@ -224,10 +236,16 @@ class ArticleController {
 
       const result = await articleService.searchArticles(query, skip, limit);
 
+      // Transform author object to string
+      const transformedArticles = result.articles.map((article) => ({
+        ...article,
+        author: `${article.author.firstName} ${article.author.lastName}`,
+      }));
+
       return res.status(200).json({
         success: true,
         data: {
-          articles: result.articles,
+          articles: transformedArticles,
           pagination: {
             total: result.total,
             page,
@@ -261,10 +279,16 @@ class ArticleController {
         limit
       );
 
+      // Transform author object to string
+      const transformedArticles = result.articles.map((article) => ({
+        ...article,
+        author: `${article.author.firstName} ${article.author.lastName}`,
+      }));
+
       return res.status(200).json({
         success: true,
         data: {
-          articles: result.articles,
+          articles: transformedArticles,
           category,
           pagination: {
             total: result.total,
@@ -279,6 +303,28 @@ class ArticleController {
       return res.status(500).json({
         success: false,
         message: "Error fetching articles by category",
+        error: error.message,
+      });
+    }
+  }
+
+  // Get all unique categories (Public)
+  async getCategories(_req: Request, res: Response): Promise<Response> {
+    try {
+      const categories = await articleService.getUniqueCategories();
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          categories,
+          total: categories.length,
+        },
+      });
+    } catch (error: any) {
+      console.error("Get categories error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error fetching categories",
         error: error.message,
       });
     }

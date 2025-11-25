@@ -9,15 +9,16 @@
 5. [Support Tickets](#support-tickets)
 6. [Medicines](#medicines)
 7. [AI Meal Planner](#ai-meal-planner)
-8. [Admin Panel](#admin-panel)
-9. [Error Handling](#error-handling)
-10. [Rate Limiting & Security](#rate-limiting--security)
+8. [Reviews](#reviews)
+9. [Admin Panel](#admin-panel)
+10. [Error Handling](#error-handling)
+11. [Rate Limiting & Security](#rate-limiting--security)
 
 ---
 
 ## Overview
 
-**Base URL:** `http://localhost:5050`
+**Base URL:** `http://digitalhealth.apiv1.wyvt.com`
 
 **API Version:** 1.0.0
 
@@ -397,7 +398,40 @@ Base Path: `/api/articles`
 
 ---
 
-### 3. Get Articles by Category
+### 3. Get All Categories
+
+**Endpoint:** `GET /api/articles/categories`
+
+**Access:** Public
+
+**Description:** Get all unique article categories.
+
+**Example:** `GET /api/articles/categories`
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "categories": [
+      "Cancer",
+      "Cardiology",
+      "Clinical Trials",
+      "Diabetes",
+      "Neurology",
+      "Nutrition",
+      "Physiology",
+      "Psychology"
+    ],
+    "total": 8
+  }
+}
+```
+
+---
+
+### 4. Get Articles by Category
 
 **Endpoint:** `GET /api/articles/category/:category`
 
@@ -405,7 +439,12 @@ Base Path: `/api/articles`
 
 **Description:** Get all articles in a specific category.
 
-**Example:** `GET /api/articles/category/Nutrition`
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 10)
+
+**Example:** `GET /api/articles/category/Nutrition?page=1&limit=10`
 
 **Success Response (200):**
 
@@ -415,14 +454,19 @@ Base Path: `/api/articles`
   "data": {
     "category": "Nutrition",
     "articles": [...],
-    "total": 12
+    "pagination": {
+      "total": 12,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 2
+    }
   }
 }
 ```
 
 ---
 
-### 4. Get Article by Slug
+### 5. Get Article by Slug
 
 **Endpoint:** `GET /api/articles/:slug`
 
@@ -1355,6 +1399,461 @@ Base Path: `/api/meal-planner`
 
 ---
 
+## Reviews
+
+Base Path: `/api/reviews`
+
+**Description:** Users can post reviews for medicines with star ratings (1-5) and messages. Each user can only review a medicine once. Reviews are automatically approved and publicly visible.
+
+### 1. Create Review
+
+**Endpoint:** `POST /api/reviews`
+
+**Access:** Protected (Requires JWT)
+
+**Description:** Create a new review for a medicine. User can only review each medicine once. Review will be automatically approved and publicly visible.
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+```
+
+**Request Body:**
+
+```json
+{
+  "medicineId": "med-id-789",
+  "rating": 5,
+  "message": "Panadol works great for headaches! Fast relief without any side effects. Highly recommend."
+}
+```
+
+**Validation:**
+
+- `medicineId`: Required, valid UUID
+- `rating`: Required, integer between 1-5
+- `message`: Required, 10-1000 characters
+
+**Success Response (201):**
+
+```json
+{
+  "success": true,
+  "message": "Review created successfully",
+  "data": {
+    "id": "review-id-123",
+    "userId": "user-id-456",
+    "medicineId": "med-id-789",
+    "rating": 5,
+    "message": "Panadol works great for headaches!...",
+    "isApproved": true,
+    "isPublished": true,
+    "createdAt": "2025-11-24T10:00:00.000Z",
+    "updatedAt": "2025-11-24T10:00:00.000Z",
+    "user": {
+      "id": "user-id-456",
+      "firstName": "Ahmed",
+      "lastName": "Khan",
+      "email": "ahmed@example.com"
+    },
+    "medicine": {
+      "id": "med-id-789",
+      "title": "Panadol",
+      "slug": "panadol",
+      "brand": "GlaxoSmithKline"
+    }
+  }
+}
+```
+
+**Error Response (400):**
+
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "medicineId",
+      "message": "Valid medicine ID is required"
+    },
+    {
+      "field": "rating",
+      "message": "Rating must be between 1 and 5"
+    },
+    {
+      "field": "message",
+      "message": "Message must be between 10 and 1000 characters"
+    }
+  ]
+}
+```
+
+**Error Response (400):**
+
+```json
+{
+  "success": false,
+  "message": "You have already reviewed this medicine"
+}
+```
+
+**Error Response (400):**
+
+```json
+{
+  "success": false,
+  "message": "Medicine not found"
+}
+```
+
+---
+
+### 2. Get Published Reviews
+
+**Endpoint:** `GET /api/reviews/published`
+
+**Access:** Public
+
+**Description:** Get all approved and published reviews (visible to everyone). Optionally filter by medicine.
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 10, max: 100)
+- `medicineId` (optional): Filter reviews for a specific medicine
+
+**Example:** `GET /api/reviews/published?page=1&limit=10`
+
+**Example with filter:** `GET /api/reviews/published?medicineId=med-id-789&page=1&limit=10`
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "reviews": [
+      {
+        "id": "review-id-123",
+        "userId": "user-id-456",
+        "medicineId": "med-id-789",
+        "rating": 5,
+        "message": "Panadol works great!...",
+        "isApproved": true,
+        "isPublished": true,
+        "createdAt": "2025-11-24T10:00:00.000Z",
+        "updatedAt": "2025-11-24T11:00:00.000Z",
+        "user": {
+          "id": "user-id-456",
+          "firstName": "Ahmed",
+          "lastName": "Khan"
+        },
+        "medicine": {
+          "id": "med-id-789",
+          "title": "Panadol",
+          "slug": "panadol",
+          "brand": "GlaxoSmithKline"
+        }
+      },
+      {
+        "id": "review-id-124",
+        "userId": "user-id-789",
+        "medicineId": "med-id-456",
+        "rating": 4,
+        "message": "Very effective medicine...",
+        "isApproved": true,
+        "isPublished": true,
+        "createdAt": "2025-11-23T15:30:00.000Z",
+        "updatedAt": "2025-11-23T16:00:00.000Z",
+        "user": {
+          "id": "user-id-789",
+          "firstName": "Fatima",
+          "lastName": "Ali"
+        },
+        "medicine": {
+          "id": "med-id-456",
+          "title": "Disprin",
+          "slug": "disprin",
+          "brand": "Reckitt Benckiser"
+        }
+      }
+    ],
+    "averageRating": 4.5,
+    "pagination": {
+      "total": 45,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 5
+    }
+  }
+}
+```
+
+---
+
+### 3. Get Reviews for a Specific Medicine
+
+**Endpoint:** `GET /api/reviews/medicine/:medicineId`
+
+**Access:** Public
+
+**Description:** Get all approved and published reviews for a specific medicine with average rating.
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 10)
+
+**Example:** `GET /api/reviews/medicine/med-id-789?page=1&limit=10`
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "reviews": [
+      {
+        "id": "review-id-123",
+        "userId": "user-id-456",
+        "medicineId": "med-id-789",
+        "rating": 5,
+        "message": "Panadol works great!...",
+        "isApproved": true,
+        "isPublished": true,
+        "createdAt": "2025-11-24T10:00:00.000Z",
+        "updatedAt": "2025-11-24T11:00:00.000Z",
+        "user": {
+          "id": "user-id-456",
+          "firstName": "Ahmed",
+          "lastName": "Khan"
+        },
+        "medicine": {
+          "id": "med-id-789",
+          "title": "Panadol",
+          "slug": "panadol",
+          "brand": "GlaxoSmithKline"
+        }
+      }
+    ],
+    "averageRating": 4.8,
+    "pagination": {
+      "total": 25,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 3
+    }
+  }
+}
+```
+
+---
+
+### 4. Get My Reviews
+
+**Endpoint:** `GET /api/reviews/my/reviews`
+
+**Access:** Protected (Requires JWT)
+
+**Description:** Get all reviews created by the logged-in user.
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 10)
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "reviews": [
+      {
+        "id": "review-id-123",
+        "userId": "user-id-456",
+        "medicineId": "med-id-789",
+        "rating": 5,
+        "message": "Panadol works great!...",
+        "isApproved": false,
+        "isPublished": true,
+        "createdAt": "2025-11-24T10:00:00.000Z",
+        "updatedAt": "2025-11-24T10:00:00.000Z",
+        "medicine": {
+          "id": "med-id-789",
+          "title": "Panadol",
+          "slug": "panadol",
+          "brand": "GlaxoSmithKline"
+        }
+      }
+    ],
+    "pagination": {
+      "total": 3,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 1
+    }
+  }
+}
+```
+
+---
+
+### 5. Get Review by ID
+
+**Endpoint:** `GET /api/reviews/:id`
+
+**Access:** Public
+
+**Description:** Get a specific review by ID.
+
+**Example:** `GET /api/reviews/review-id-123`
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "review-id-123",
+    "userId": "user-id-456",
+    "medicineId": "med-id-789",
+    "rating": 5,
+    "message": "Panadol works great!...",
+    "isApproved": true,
+    "isPublished": true,
+    "createdAt": "2025-11-24T10:00:00.000Z",
+    "updatedAt": "2025-11-24T11:00:00.000Z",
+    "user": {
+      "id": "user-id-456",
+      "firstName": "Ahmed",
+      "lastName": "Khan",
+      "email": "ahmed@example.com"
+    },
+    "medicine": {
+      "id": "med-id-789",
+      "title": "Panadol",
+      "slug": "panadol",
+      "brand": "GlaxoSmithKline"
+    }
+  }
+}
+```
+
+**Error Response (404):**
+
+```json
+{
+  "success": false,
+  "message": "Review not found"
+}
+```
+
+---
+
+### 6. Update Review
+
+**Endpoint:** `PUT /api/reviews/:id`
+
+**Access:** Protected (User can only update their own reviews)
+
+**Description:** Update a review. Cannot change the medicine being reviewed.
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+Content-Type: application/json
+```
+
+**Request Body:**
+
+```json
+{
+  "rating": 4,
+  "message": "Updated my review after using Panadol for a longer period. Still effective!"
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Review updated successfully",
+  "data": {
+    "id": "review-id-123",
+    "medicineId": "med-id-789",
+    "rating": 4,
+    "message": "Updated my review...",
+    "isApproved": true,
+    "isPublished": true,
+    "createdAt": "2025-11-24T10:00:00.000Z",
+    "updatedAt": "2025-11-24T12:30:00.000Z",
+    "medicine": {
+      "id": "med-id-789",
+      "title": "Panadol",
+      "slug": "panadol",
+      "brand": "GlaxoSmithKline"
+    }
+  }
+}
+```
+
+**Error Response (404):**
+
+```json
+{
+  "success": false,
+  "message": "Review not found or unauthorized"
+}
+```
+
+---
+
+### 7. Delete Review
+
+**Endpoint:** `DELETE /api/reviews/:id`
+
+**Access:** Protected (User can only delete their own reviews)
+
+**Description:** Delete a review.
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Review deleted successfully"
+}
+```
+
+**Error Response (404):**
+
+```json
+{
+  "success": false,
+  "message": "Review not found or unauthorized"
+}
+```
+
+---
+
 ## Admin Panel
 
 Base Path: `/api/admin`
@@ -1617,6 +2116,210 @@ Authorization: Bearer ADMIN_JWT_TOKEN
 
 ---
 
+### Review Management (Admin)
+
+#### 1. Get All Reviews
+
+**Endpoint:** `GET /api/reviews/admin/all`
+
+**Access:** Admin Only
+
+**Description:** Get all reviews with advanced filtering options.
+
+**Query Parameters:**
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Items per page (default: 10, max: 100)
+- `medicineId` (optional): Filter by specific medicine
+- `rating` (optional): Filter by rating (1-5)
+- `isApproved` (optional): Filter by approval status (true/false)
+- `isPublished` (optional): Filter by publish status (true/false)
+- `orderBy` (optional): Sort field - "createdAt" or "rating" (default: "createdAt")
+- `order` (optional): Sort order - "asc" or "desc" (default: "desc")
+
+**Example:** `GET /api/reviews/admin/all?isApproved=false&orderBy=createdAt&order=desc`
+
+**Example with medicine filter:** `GET /api/reviews/admin/all?medicineId=med-id-789&isApproved=true`
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "reviews": [
+      {
+        "id": "review-id-123",
+        "userId": "user-id-456",
+        "medicineId": "med-id-789",
+        "rating": 5,
+        "message": "Panadol works great!...",
+        "isApproved": false,
+        "isPublished": true,
+        "createdAt": "2025-11-24T10:00:00.000Z",
+        "updatedAt": "2025-11-24T10:00:00.000Z",
+        "user": {
+          "id": "user-id-456",
+          "firstName": "Ahmed",
+          "lastName": "Khan",
+          "email": "ahmed@example.com"
+        },
+        "medicine": {
+          "id": "med-id-789",
+          "title": "Panadol",
+          "slug": "panadol",
+          "brand": "GlaxoSmithKline"
+        }
+      }
+    ],
+    "pagination": {
+      "total": 25,
+      "page": 1,
+      "limit": 10,
+      "totalPages": 3
+    }
+  }
+}
+```
+
+---
+
+#### 2. Get Review Statistics
+
+**Endpoint:** `GET /api/reviews/admin/stats`
+
+**Access:** Admin Only
+
+**Description:** Get comprehensive review statistics.
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "total": 150,
+    "approved": 120,
+    "pending": 30,
+    "averageRating": 4.3,
+    "ratingDistribution": {
+      "1": 5,
+      "2": 10,
+      "3": 20,
+      "4": 50,
+      "5": 65
+    }
+  }
+}
+```
+
+---
+
+#### 3. Approve/Reject Review
+
+**Endpoint:** `PATCH /api/reviews/admin/:id/approve`
+
+**Access:** Admin Only
+
+**Description:** Update review approval status.
+
+**Request Body:**
+
+```json
+{
+  "isApproved": true
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Review approved successfully",
+  "data": {
+    "id": "review-id-123",
+    "medicineId": "med-id-789",
+    "rating": 5,
+    "message": "Panadol works great!...",
+    "isApproved": true,
+    "isPublished": true,
+    "createdAt": "2025-11-24T10:00:00.000Z",
+    "updatedAt": "2025-11-24T11:00:00.000Z",
+    "medicine": {
+      "id": "med-id-789",
+      "title": "Panadol",
+      "slug": "panadol",
+      "brand": "GlaxoSmithKline"
+    }
+  }
+}
+```
+
+---
+
+#### 4. Publish/Unpublish Review
+
+**Endpoint:** `PATCH /api/reviews/admin/:id/publish`
+
+**Access:** Admin Only
+
+**Description:** Update review publish status (show/hide from public).
+
+**Request Body:**
+
+```json
+{
+  "isPublished": false
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Review unpublished successfully",
+  "data": {
+    "id": "review-id-123",
+    "medicineId": "med-id-789",
+    "rating": 5,
+    "message": "Panadol works great!...",
+    "isApproved": true,
+    "isPublished": false,
+    "createdAt": "2025-11-24T10:00:00.000Z",
+    "updatedAt": "2025-11-24T11:30:00.000Z",
+    "medicine": {
+      "id": "med-id-789",
+      "title": "Panadol",
+      "slug": "panadol",
+      "brand": "GlaxoSmithKline"
+    }
+  }
+}
+```
+
+---
+
+#### 5. Delete Review (Admin)
+
+**Endpoint:** `DELETE /api/reviews/admin/:id`
+
+**Access:** Admin Only
+
+**Description:** Delete any review (admin privilege).
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Review deleted successfully"
+}
+```
+
+---
+
 ## Error Handling
 
 ### Standard Error Response Format
@@ -1779,6 +2482,7 @@ Digital Health Assistant API
 ├── Support Tickets
 ├── Medicines
 ├── AI Meal Planner
+├── Reviews
 └── Admin Panel
 ```
 
@@ -1804,6 +2508,7 @@ Digital Health Assistant API
 - ✅ Pakistani cuisine focus with cultural relevance
 - ✅ Health condition-specific meal plans
 - ✅ Budget-conscious meal planning
+- ✅ User reviews system with star ratings for medicines and admin moderation
 
 ---
 
@@ -1825,4 +2530,4 @@ Proprietary - Digital Health Assistant © 2025
 
 ---
 
-**Last Updated:** November 23, 2025
+**Last Updated:** November 24, 2025

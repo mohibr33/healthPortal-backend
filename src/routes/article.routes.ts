@@ -7,6 +7,10 @@ const router = Router();
 router.get("/", articleController.getAllArticles.bind(articleController));
 router.get("/search", articleController.searchArticles.bind(articleController));
 router.get(
+  "/categories",
+  articleController.getCategories.bind(articleController)
+);
+router.get(
   "/category/:category",
   articleController.getArticlesByCategory.bind(articleController)
 );

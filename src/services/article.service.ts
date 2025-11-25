@@ -193,6 +193,21 @@ class ArticleService {
   ): Promise<{ articles: IArticleWithAuthor[]; total: number }> {
     return await this.getAllArticles(skip, take, category);
   }
+
+  // Get all unique categories
+  async getUniqueCategories(): Promise<string[]> {
+    const categories = await prisma.article.findMany({
+      select: {
+        category: true,
+      },
+      distinct: ["category"],
+      orderBy: {
+        category: "asc",
+      },
+    });
+
+    return categories.map((item) => item.category);
+  }
 }
 
 export default new ArticleService();

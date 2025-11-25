@@ -70,11 +70,13 @@ CRITICAL: Always return valid JSON format with the following structure:
   }
 
   private getUserPrompt(userProfile: any, duration: string): string {
-    const daysCount = duration === "7" ? 7 : 30;
+    const daysCount = parseInt(duration) || 7;
     const bmi = this.calculateBMI(userProfile.weight, userProfile.height);
     const targetCalories = this.calculateTargetCalories(userProfile);
 
-    return `Create a personalized ${daysCount}-day meal plan for the following individual:
+    return `IMPORTANT: You MUST create EXACTLY ${daysCount} days of meal plans. Do NOT create fewer days.
+
+Create a personalized ${daysCount}-day meal plan for the following individual:
 
 PERSONAL INFORMATION:
 - Age: ${userProfile.age} years
@@ -127,8 +129,10 @@ ${this.generateCriticalRequirements(userProfile)}
 
 Please create a comprehensive meal plan following these guidelines:
 
-1. MEAL STRUCTURE:
-   - Provide ${daysCount} days of meals
+1. MEAL STRUCTURE (CRITICAL - READ CAREFULLY):
+   - YOU MUST PROVIDE EXACTLY ${daysCount} DAYS OF MEAL PLANS
+   - DO NOT provide only 7 days if ${daysCount} is 30
+   - VERIFY your response includes Day 1 through Day ${daysCount}
    - Each day should include: ${this.getMealTimes(userProfile.mealsPerDay)}
    - Total daily calories: ${targetCalories} kcal (±100)
    - Macro distribution: Carbs: 45%, Protein: 30%, Fats: 25%
@@ -161,12 +165,16 @@ Please create a comprehensive meal plan following these guidelines:
 
 5. OUTPUT REQUIREMENTS:
    - Return response in valid JSON format
+   - MANDATORY: Include ALL ${daysCount} days in the dailyMeals array
+   - Each day object must have meals for Day 1, Day 2, ... up to Day ${daysCount}
    - Include nutritional breakdown per meal and daily totals
-   - Provide variety across the week (no repetitive meals)
+   - Provide variety across the ${daysCount} days (no repetitive meals)
    - Include both English and Urdu names for dishes
    - Add helpful tips and warnings specific to health conditions
    - Include shopping list with estimated costs in PKR
-   - Provide meal prep strategies and substitution options`;
+   - Provide meal prep strategies and substitution options
+
+FINAL REMINDER: Your response MUST contain exactly ${daysCount} days of meal plans in the dailyMeals array. Count them before responding!`;
   }
 
   private calculateBMI(weight: number, height: number): number {
