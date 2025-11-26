@@ -1,7 +1,9 @@
 import express, { Application, Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import passport from "./config/passport";
 import userRoutes from "./routes/user.routes";
+import authRoutes from "./routes/auth.routes";
 import adminRoutes from "./routes/admin.routes";
 import articleRoutes from "./routes/article.routes";
 import ticketRoutes from "./routes/ticket.routes";
@@ -23,7 +25,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Initialize Passport
+app.use(passport.initialize());
+
 // Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/articles", articleRoutes);
@@ -62,6 +68,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 app.listen(PORT, async () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📍 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔐 Auth API: http://localhost:${PORT}/api/auth`);
   console.log(`👤 User API: http://localhost:${PORT}/api/users`);
   console.log(`👑 Admin API: http://localhost:${PORT}/api/admin`);
   console.log(`📰 Articles API: http://localhost:${PORT}/api/articles`);
@@ -71,6 +78,7 @@ app.listen(PORT, async () => {
     `🍽️  Meal Planner API: http://localhost:${PORT}/api/meal-planner`
   );
   console.log(`⭐ Reviews API: http://localhost:${PORT}/api/reviews`);
+  console.log(`🔗 Google OAuth: http://localhost:${PORT}/api/auth/google`);
 
   // Verify email service connection
   await emailService.verifyConnection();

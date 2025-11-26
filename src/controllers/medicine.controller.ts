@@ -44,8 +44,27 @@ export const createMedicine = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const medicineData = req.body;
+    let medicineData = req.body;
     const userId = (req as IAuthRequest).userId!;
+
+    // Flatten productDetails if it exists
+    if (
+      medicineData.productDetails &&
+      typeof medicineData.productDetails === "object"
+    ) {
+      const { productDetails, ...rest } = medicineData;
+      medicineData = {
+        ...rest,
+        ...productDetails,
+      };
+    }
+
+    // Map requiresPrescriptionYesNo to requiresPrescription
+    if (medicineData.requiresPrescriptionYesNo !== undefined) {
+      medicineData.requiresPrescription =
+        medicineData.requiresPrescriptionYesNo === "Yes";
+      delete medicineData.requiresPrescriptionYesNo;
+    }
 
     // Check if product ID already exists
     const existingMedicine = await medicineService.findMedicineByProductId(
@@ -281,7 +300,26 @@ export const updateMedicine = async (
 ): Promise<void> => {
   try {
     const { id } = req.params;
-    const medicineData = req.body;
+    let medicineData = req.body;
+
+    // Flatten productDetails if it exists
+    if (
+      medicineData.productDetails &&
+      typeof medicineData.productDetails === "object"
+    ) {
+      const { productDetails, ...rest } = medicineData;
+      medicineData = {
+        ...rest,
+        ...productDetails,
+      };
+    }
+
+    // Map requiresPrescriptionYesNo to requiresPrescription
+    if (medicineData.requiresPrescriptionYesNo !== undefined) {
+      medicineData.requiresPrescription =
+        medicineData.requiresPrescriptionYesNo === "Yes";
+      delete medicineData.requiresPrescriptionYesNo;
+    }
 
     // Check if medicine exists
     const medicine = await medicineService.findMedicineById(id);

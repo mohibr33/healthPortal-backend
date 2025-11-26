@@ -49,6 +49,85 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 **Token Expiry:** 7 days (configurable via `JWT_EXPIRE` in `.env`)
 
+### Google OAuth Authentication
+
+The API supports Google OAuth 2.0 for seamless user authentication.
+
+#### Initiate Google Login
+
+**Endpoint:** `GET /api/auth/google`
+
+**Access:** Public
+
+**Description:** Redirects user to Google login page for authentication.
+
+**Usage:** Redirect your users to this URL from your frontend:
+
+```javascript
+window.location.href = "http://digitalhealth.apiv1.wyvt.com/api/auth/google";
+```
+
+#### Google Callback
+
+**Endpoint:** `GET /api/auth/google/callback`
+
+**Access:** Public (Handled by Google)
+
+**Description:** Google redirects here after user authentication. The API processes the authentication and redirects to your frontend with JWT token.
+
+**Redirect URL Pattern:**
+
+```
+{FRONTEND_URL}/auth/callback?token={JWT_TOKEN}&user={USER_DATA}
+```
+
+**User Data (URL encoded JSON):**
+
+```json
+{
+  "id": "user-id",
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john@example.com",
+  "role": "user",
+  "isVerified": true
+}
+```
+
+**Frontend Implementation Example:**
+
+```javascript
+// In your /auth/callback page
+const urlParams = new URLSearchParams(window.location.search);
+const token = urlParams.get("token");
+const userString = urlParams.get("user");
+const user = JSON.parse(decodeURIComponent(userString));
+
+// Store token
+localStorage.setItem("token", token);
+localStorage.setItem("user", JSON.stringify(user));
+
+// Redirect to dashboard
+window.location.href = "/dashboard";
+```
+
+#### Logout
+
+**Endpoint:** `GET /api/auth/logout`
+
+**Access:** Public
+
+**Description:** Logout user and clear session.
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
 ---
 
 ## User Management
@@ -2439,6 +2518,7 @@ DATABASE_URL="postgresql://user:password@host/database"
 # Server
 PORT=5050
 NODE_ENV=development
+FRONTEND_URL=http://localhost:3000
 
 # JWT
 JWT_SECRET="your-super-secret-jwt-key"
@@ -2453,10 +2533,10 @@ SMTP_PORT=587
 # OpenAI
 OPENAI_API_KEY="sk-proj-your-key-here"
 
-# Google OAuth (Optional)
-GOOGLE_CLIENT_ID="your-client-id"
-GOOGLE_CLIENT_SECRET="your-client-secret"
-GOOGLE_CALLBACK_URL="http://localhost:5050/api/auth/google/callback"
+# Google OAuth
+GOOGLE_CLIENT_ID="your-google-client-id.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="your-google-client-secret"
+GOOGLE_CALLBACK_URL="http://digitalhealth.apiv1.wyvt.com/api/auth/google/callback"
 ```
 
 ---

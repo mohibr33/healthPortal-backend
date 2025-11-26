@@ -25,9 +25,11 @@ export interface ICreateUserDTO {
   firstName: string;
   lastName: string;
   email: string;
-  password?: string;
+  password?: string | null;
   gender?: string;
   phone?: string;
+  googleId?: string;
+  isVerified?: boolean;
 }
 
 export interface IUpdateUserDTO {
@@ -36,6 +38,8 @@ export interface IUpdateUserDTO {
   gender?: string;
   phone?: string;
   password?: string;
+  googleId?: string;
+  isVerified?: boolean;
 }
 
 export interface ILoginDTO {

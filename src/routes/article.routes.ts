@@ -1,7 +1,7 @@
 import { Router } from "express";
 import articleController from "../controllers/article.controller";
 
-const router = Router();
+const router: Router = Router();
 
 // Public routes
 router.get("/", articleController.getAllArticles.bind(articleController));

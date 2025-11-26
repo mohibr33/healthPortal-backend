@@ -24,7 +24,7 @@ import {
   validateReviewFilters,
 } from "../middlewares/review.validation";
 
-const router = Router();
+const router: Router = Router();
 
 // Public routes
 router.get("/published", getPublishedReviews);

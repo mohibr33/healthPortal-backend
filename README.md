@@ -8,19 +8,28 @@ A comprehensive digital health assistant API built with Node.js, Express, Prisma
 - ✅ Email Verification with OTP
 - ✅ Password Reset via Email
 - ✅ JWT-based Authentication
-- ✅ Google OAuth Support (Schema ready)
+- ✅ **Google OAuth 2.0 Login**
 - ✅ Profile Management
 - ✅ Secure Password Hashing
 - ✅ TypeScript for type safety
+- ✅ Admin Panel with RBAC
+- ✅ Article Management System
+- ✅ Support Ticket System
+- ✅ Medicine Database (2443+ medicines)
+- ✅ AI-Powered Meal Planner (GPT-4o-mini)
+- ✅ Medicine Reviews & Ratings
 
 ## Tech Stack
 
 - **Runtime**: Node.js
 - **Language**: TypeScript
 - **Framework**: Express.js
-- **Database**: PostgreSQL
+- **Database**: PostgreSQL (Neon)
 - **ORM**: Prisma
-- **Authentication**: JWT
+- **Authentication**: JWT + Passport.js
+- **OAuth**: Google OAuth 2.0
+- **AI**: OpenAI GPT-4o-mini
+- **Email**: Nodemailer (GMX SMTP)
 - **Password Hashing**: bcryptjs
 - **Validation**: express-validator
 
@@ -76,6 +85,30 @@ npm start
 The server will start on `http://localhost:5000`
 
 ## API Endpoints
+
+### Authentication
+
+#### Google OAuth Login
+
+```http
+GET /api/auth/google
+```
+
+Redirects to Google OAuth consent screen. After authentication, redirects to frontend with JWT token.
+
+**Frontend Integration:**
+
+```javascript
+// Redirect user to Google login
+window.location.href = "http://digitalhealth.apiv1.wyvt.com/api/auth/google";
+
+// Handle callback at /auth/callback
+const token = searchParams.get("token");
+const user = searchParams.get("user");
+localStorage.setItem("token", token);
+```
+
+See `GOOGLE_OAUTH_SETUP.md` for complete integration guide.
 
 ### Public Routes
 
@@ -274,13 +307,20 @@ npm start
 
 ## Next Steps
 
-- [ ] Implement email service for OTP and password reset
-- [ ] Add Google OAuth implementation
+- [x] Implement email service for OTP and password reset
+- [x] Add Google OAuth implementation
 - [ ] Add refresh token mechanism
 - [ ] Implement rate limiting
 - [ ] Add logging system
 - [ ] Add unit and integration tests
-- [ ] Add API documentation (Swagger)
+- [x] Add API documentation
+
+## Documentation
+
+- **API Documentation**: `API_DOCUMENTATION.md` - Complete API reference
+- **Google OAuth Setup**: `GOOGLE_OAUTH_SETUP.md` - OAuth integration guide
+- **OAuth Summary**: `OAUTH_IMPLEMENTATION_SUMMARY.md` - Implementation details
+- **Postman Testing**: `POSTMAN_TESTING_GUIDE.md` - Testing guide
 
 ## License
 
