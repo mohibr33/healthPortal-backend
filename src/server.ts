@@ -1,6 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import path from "path";
 import passport from "./config/passport";
 import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
@@ -10,6 +11,7 @@ import ticketRoutes from "./routes/ticket.routes";
 import medicineRoutes from "./routes/medicine.routes";
 import mealPlanRoutes from "./routes/mealPlan.routes";
 import reviewRoutes from "./routes/review.routes";
+import medicalChatRoutes from "./routes/medicalChat.routes";
 import emailService from "./utils/email.util";
 
 // Load environment variables
@@ -25,6 +27,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve static files (for uploaded chat files)
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 // Initialize Passport
 app.use(passport.initialize());
 
@@ -37,6 +42,7 @@ app.use("/api/tickets", ticketRoutes);
 app.use("/api/medicines", medicineRoutes);
 app.use("/api/meal-planner", mealPlanRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/medical-chat", medicalChatRoutes);
 
 // Health check route
 app.get("/health", (_req: Request, res: Response) => {
@@ -78,6 +84,7 @@ app.listen(PORT, async () => {
     `🍽️  Meal Planner API: http://localhost:${PORT}/api/meal-planner`
   );
   console.log(`⭐ Reviews API: http://localhost:${PORT}/api/reviews`);
+  console.log(`💬 Medical Chat API: http://localhost:${PORT}/api/medical-chat`);
   console.log(`🔗 Google OAuth: http://localhost:${PORT}/api/auth/google`);
 
   // Verify email service connection
