@@ -35,6 +35,7 @@ model User {
   healthProfiles   HealthProfile[]
   mealPlans        MealPlan[]
   reviews          Review[]
+  medicalChats     MedicalChat[]
 
   @@index([email])
   @@index([googleId])
@@ -239,4 +240,73 @@ enum Priority {
 enum TicketStatus {
   open
   resolved
+}
+
+model MedicalChat {
+  id          String          @id @default(uuid())
+  userId      String
+  title       String          // Auto-generated from first message
+  status      ChatStatus      @default(active)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    ChatMessage[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ChatMessage {
+  id              String            @id @default(uuid())
+  chatId          String
+  role            MessageRole       // user or assistant
+  content         String            @db.Text
+  messageType     MessageType       @default(text)
+  
+  // For voice messages
+  audioUrl        String?
+  audioDuration   Int?              // in seconds
+  transcription   String?           @db.Text
+  
+  // Metadata
+  tokens          Int?              // AI tokens used
+  createdAt       DateTime          @default(now())
+  
+  chat            MedicalChat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  attachments     ChatAttachment[]
+  
+  @@index([chatId])
+  @@index([createdAt])
+}
+
+model ChatAttachment {
+  id            String       @id @default(uuid())
+  messageId     String
+  fileName      String
+  fileUrl       String
+  fileType      String       // mime type
+  fileSize      Int          // in bytes
+  uploadedAt    DateTime     @default(now())
+  
+  message       ChatMessage  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  @@index([messageId])
+}
+
+enum ChatStatus {
+  active
+  archived
+}
+
+enum MessageRole {
+  user
+  assistant
+}
+
+enum MessageType {
+  text
+  voice
+  file
 }
