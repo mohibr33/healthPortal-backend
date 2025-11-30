@@ -111,7 +111,9 @@ export const updateProfileValidation: ValidationChain[] = [
 ];
 
 export const resetPasswordValidation: ValidationChain[] = [
-  body("token").notEmpty().withMessage("Reset token is required"),
+  body("otp")
+    .notEmpty()
+    .withMessage("OTP is required"), // change message to match field
 
   body("newPassword")
     .notEmpty()

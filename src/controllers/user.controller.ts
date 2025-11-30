@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import userService from "../services/user.service";
 import * as jwt from "jsonwebtoken";
-import { IAuthRequest, IJWTPayload } from "../types/user.types";
+// import { IAuthRequest, IJWTPayload } from "../types/user.types";
+import { IAuthRequest } from "../types/user.types"; // Removed IJWTPayload
 import prisma from "../config/database";
 import emailService from "../utils/email.util";
 
@@ -210,101 +211,87 @@ class UserController {
 
   // Request password reset
   async requestPasswordReset(req: Request, res: Response): Promise<Response> {
-    try {
-      const { email } = req.body;
+  try {
+    const { email } = req.body;
 
-      const user = await userService.findUserByEmail(email);
-      if (!user) {
-        // Don't reveal if user exists
-        return res.status(200).json({
-          success: true,
-          message: "If the email exists, a reset link will be sent",
-        });
-      }
-
-      // Generate reset token
-      const jwtSecret = process.env.JWT_SECRET || "default-secret";
-
-      const resetToken = jwt.sign({ userId: user.id }, jwtSecret, {
-        expiresIn: "1h",
-      } as jwt.SignOptions);
-
-      await userService.saveResetToken(email, resetToken);
-
-      // Send reset token via email
-      const emailSent = await emailService.sendPasswordResetEmail(
-        email,
-        resetToken
-      );
-
-      if (!emailSent) {
-        console.warn(`Failed to send password reset email to ${email}`);
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: "If the email exists, a reset link will be sent",
-      });
-    } catch (error: any) {
-      console.error("Password reset request error:", error);
-      return res.status(500).json({
+    const user = await userService.findUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({
         success: false,
-        message: "Error requesting password reset",
-        error: error.message,
+        message: "User not found",
       });
     }
-  }
 
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min expiry
+
+    // Save OTP and expiry in DB
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otp,
+        otpExpiry,
+      },
+    });
+
+    // Send OTP via email
+    await emailService.sendOTPEmail(email, otp);
+
+    return res.status(200).json({
+      success: true,
+      message: "OTP sent successfully. Please check your email.",
+    });
+  } catch (error: any) {
+    console.error("Request password reset error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send OTP",
+    });
+  }
+}
   // Reset password
   async resetPassword(req: Request, res: Response): Promise<Response> {
-    try {
-      const { token, newPassword } = req.body;
+  try {
+    const { email, otp, newPassword } = req.body;
 
-      // Verify token
-      const jwtSecret = process.env.JWT_SECRET || "default-secret";
-      const decoded = jwt.verify(token, jwtSecret) as IJWTPayload;
-
-      const user = await userService.findUserByIdInternal(decoded.userId);
-      if (!user || user.resetToken !== token) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid or expired reset token",
-        });
-      }
-
-      if (user.resetTokenExpiry && new Date() > user.resetTokenExpiry) {
-        return res.status(400).json({
-          success: false,
-          message: "Reset token has expired",
-        });
-      }
-
-      // Update password and clear reset token
-      await userService.updateUser(decoded.userId, {
-        password: newPassword,
-      });
-
-      await prisma.user.update({
-        where: { id: decoded.userId },
-        data: {
-          resetToken: null,
-          resetTokenExpiry: null,
-        },
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "Password reset successfully",
-      });
-    } catch (error: any) {
-      console.error("Password reset error:", error);
-      return res.status(500).json({
-        success: false,
-        message: "Error resetting password",
-        error: error.message,
-      });
+    const user = await userService.findUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
     }
+
+    if (!user.otp || user.otp !== otp) {
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    if (user.otpExpiry && new Date() > user.otpExpiry) {
+      return res.status(400).json({ success: false, message: "OTP has expired" });
+    }
+
+    // Update password (hash it before saving)
+    await userService.updateUser(user.id, { password: newPassword });
+
+    // Clear OTP fields
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        otp: null,
+        otpExpiry: null,
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset successfully",
+    });
+  } catch (error: any) {
+    console.error("Reset password error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error resetting password",
+    });
   }
+}
 
   // Get all users (admin)
   async getAllUsers(req: Request, res: Response): Promise<Response> {

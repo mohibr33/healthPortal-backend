@@ -16,7 +16,7 @@ import emailService from "./utils/email.util";
 dotenv.config();
 
 const app: Application = express();
-const PORT = process.env.PORT || 5000;
+const PORT = 5050;
 
 // Middleware
 //add cors to allow all traffic
