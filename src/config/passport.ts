@@ -2,20 +2,39 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import userService from "../services/user.service";
 
+// Validate required environment variables
+const clientID = process.env.GOOGLE_CLIENT_ID;
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const callbackURL = process.env.GOOGLE_CALLBACK_URL;
+
+if (!clientID || !clientSecret || !callbackURL) {
+  console.warn(
+    "⚠️  Google OAuth is not fully configured. Missing environment variables:",
+    {
+      GOOGLE_CLIENT_ID: clientID ? "✓" : "✗",
+      GOOGLE_CLIENT_SECRET: clientSecret ? "✓" : "✗",
+      GOOGLE_CALLBACK_URL: callbackURL ? "✓" : "✗",
+    }
+  );
+}
+
 // Configure Google OAuth Strategy
 passport.use(
   new GoogleStrategy(
     {
-      clientID: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
-      callbackURL: process.env.GOOGLE_CALLBACK_URL || "",
+      clientID: clientID || "not-configured",
+      clientSecret: clientSecret || "not-configured",
+      callbackURL: callbackURL || "not-configured",
     },
     async (_accessToken, _refreshToken, profile, done) => {
       try {
+        console.log("Google OAuth: Processing profile for user:", profile.id);
+
         // Check if user exists with this Google ID
         let user = await userService.findUserByGoogleId(profile.id);
 
         if (user) {
+          console.log("Google OAuth: Existing user found by Google ID");
           // User exists, return user
           return done(null, user);
         }
@@ -26,6 +45,9 @@ passport.use(
           user = await userService.findUserByEmail(email);
 
           if (user) {
+            console.log(
+              "Google OAuth: Linking Google account to existing user"
+            );
             // Link Google account to existing user
             const updatedUser = await userService.updateUser(user.id, {
               googleId: profile.id,
@@ -35,6 +57,7 @@ passport.use(
           }
         }
 
+        console.log("Google OAuth: Creating new user");
         // Create new user
         const newUser = await userService.createUser({
           firstName: profile.name?.givenName || "User",
@@ -47,6 +70,7 @@ passport.use(
 
         return done(null, newUser);
       } catch (error) {
+        console.error("Google OAuth: Error during authentication:", error);
         return done(error as Error, undefined);
       }
     }

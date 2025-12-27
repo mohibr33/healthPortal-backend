@@ -1,4 +1,4 @@
-import { Article } from "@prisma/client";
+// import { Article } from "@prisma/client";
 
 export interface IArticle {
   id: string;

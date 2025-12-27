@@ -1,5 +1,5 @@
 import prisma from "../config/database";
-import { IMealPlan } from "../types/mealPlan.types";
+import { IMealPlan, IMealPlanData } from "../types/mealPlan.types";
 import openaiService from "./openai.service";
 import healthProfileService from "./healthProfile.service";
 
@@ -18,17 +18,18 @@ class MealPlanService {
     }
 
     // Generate meal plan using AI
-    const aiResponse = await openaiService.generateMealPlan(
+    const aiResponse: IMealPlanData = await openaiService.generateMealPlan(
       healthProfile,
       duration
     );
 
-    // Extract metadata
+    // Extract metadata from the properly structured response
     const totalCalories =
       aiResponse.mealPlan?.summary?.totalCaloriesPerDay || 2000;
-    const estimatedCost = this.parseEstimatedCost(
-      aiResponse.mealPlan?.summary?.estimatedCost
-    );
+    
+    // Get estimated cost from the new structure
+    const estimatedCost =
+      aiResponse.mealPlan?.summary?.estimatedWeeklyCostPKR || 0;
 
     // Save meal plan to database
     const mealPlan = await prisma.mealPlan.create({
@@ -42,7 +43,7 @@ class MealPlanService {
       },
     });
 
-    return mealPlan as IMealPlan;
+    return mealPlan as unknown as IMealPlan;
   }
 
   // Get user's meal plans
@@ -61,28 +62,30 @@ class MealPlanService {
       prisma.mealPlan.count({ where: { userId } }),
     ]);
 
-    return { mealPlans: mealPlans as IMealPlan[], total };
+    return { mealPlans: mealPlans as unknown as IMealPlan[], total };
   }
 
   // Get meal plan by ID
   async getMealPlanById(id: string, userId: string): Promise<IMealPlan | null> {
-    return (await prisma.mealPlan.findFirst({
+    const mealPlan = await prisma.mealPlan.findFirst({
       where: {
         id,
         userId,
       },
-    })) as IMealPlan | null;
+    });
+    return mealPlan as unknown as IMealPlan | null;
   }
 
   // Get active meal plan
   async getActiveMealPlan(userId: string): Promise<IMealPlan | null> {
-    return (await prisma.mealPlan.findFirst({
+    const mealPlan = await prisma.mealPlan.findFirst({
       where: {
         userId,
         status: "active",
       },
       orderBy: { createdAt: "desc" },
-    })) as IMealPlan | null;
+    });
+    return mealPlan as unknown as IMealPlan | null;
   }
 
   // Update meal plan status
@@ -91,13 +94,14 @@ class MealPlanService {
     userId: string,
     status: "active" | "completed" | "archived"
   ): Promise<IMealPlan> {
-    return (await prisma.mealPlan.update({
+    const mealPlan = await prisma.mealPlan.update({
       where: {
         id,
         userId,
       },
       data: { status },
-    })) as IMealPlan;
+    });
+    return mealPlan as unknown as IMealPlan;
   }
 
   // Delete meal plan
@@ -108,15 +112,6 @@ class MealPlanService {
         userId,
       },
     });
-  }
-
-  // Helper: Parse estimated cost from string
-  private parseEstimatedCost(costString?: string): number {
-    if (!costString) return 0;
-
-    // Extract number from strings like "8500 PKR/week" or "8500"
-    const match = costString.match(/(\d+)/);
-    return match ? parseInt(match[1]) : 0;
   }
 }
 

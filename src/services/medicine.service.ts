@@ -104,7 +104,10 @@ class MedicineService {
       prisma.medicine.findMany({
         skip,
         take,
-        orderBy: { createdAt: "desc" },
+        orderBy: [
+          { dataCompletenessScore: "desc" },
+          { createdAt: "desc" },
+        ],
       }),
       prisma.medicine.count(),
     ]);
@@ -131,7 +134,10 @@ class MedicineService {
         where,
         skip,
         take,
-        orderBy: { createdAt: "desc" },
+        orderBy: [
+          { dataCompletenessScore: "desc" },
+          { createdAt: "desc" },
+        ],
       }),
       prisma.medicine.count({ where }),
     ]);
@@ -152,7 +158,10 @@ class MedicineService {
         where,
         skip,
         take,
-        orderBy: { createdAt: "desc" },
+        orderBy: [
+          { dataCompletenessScore: "desc" },
+          { createdAt: "desc" },
+        ],
       }),
       prisma.medicine.count({ where }),
     ]);
@@ -173,7 +182,10 @@ class MedicineService {
         where,
         skip,
         take,
-        orderBy: { createdAt: "desc" },
+        orderBy: [
+          { dataCompletenessScore: "desc" },
+          { createdAt: "desc" },
+        ],
       }),
       prisma.medicine.count({ where }),
     ]);

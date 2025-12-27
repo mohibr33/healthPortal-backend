@@ -22,6 +22,7 @@ export interface IMedicine {
   pregnancyCategory?: string | null;
   drugInteractions?: string | null;
   requiresPrescription: boolean;
+  dataCompletenessScore: number;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;

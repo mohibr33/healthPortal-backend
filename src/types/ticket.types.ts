@@ -1,4 +1,4 @@
-import { SupportTicket } from "@prisma/client";
+// import { SupportTicket } from "@prisma/client";
 
 export interface ISupportTicket {
   id: string;
