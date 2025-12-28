@@ -3,14 +3,24 @@ import { ICreateTicketDTO, ITicketWithUser } from "../types/ticket.types";
 import { SupportTicket } from "@prisma/client";
 
 class TicketService {
+  // Generate a unique ticket number
+  private generateTicketNumber(): string {
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `TKT-${timestamp}-${random}`;
+  }
+
   // Create ticket
   async createTicket(
     ticketData: ICreateTicketDTO,
     userId: string
   ): Promise<ITicketWithUser> {
+    const ticketNumber = this.generateTicketNumber();
+    
     const ticket = await prisma.supportTicket.create({
       data: {
         ...ticketData,
+        ticketNumber,
         userId,
       },
       include: {

@@ -346,6 +346,10 @@ class OpenAIService {
       mealPlan.dailyMeals = [];
     }
 
+    // Track if we need to recalculate summary
+    let totalDailyCalories = 0;
+    let daysWithData = 0;
+
     // Ensure all daily meals have required fields
     mealPlan.dailyMeals = mealPlan.dailyMeals.map(
       (day: IDailyMeals, index: number) => {
@@ -353,9 +357,9 @@ class OpenAIService {
         const fixedDay: IDailyMeals = {
           ...day,
           day: day.day || index + 1,
-          dayName: day.dayName || `Day ${index + 1}`,
+          dayName: day.dayName || this.getDayName(index),
           waterIntakeGoal: day.waterIntakeGoal || 8,
-          dailyTip: day.dailyTip || "Stay hydrated and eat mindfully.",
+          dailyTip: day.dailyTip || this.getDefaultDailyTip(index),
           meals: day.meals || [],
           dailyTotals: day.dailyTotals || {
             calories: 0,
@@ -366,35 +370,62 @@ class OpenAIService {
           },
         };
 
-        // Ensure all meals have required nutrition data
-        fixedDay.meals = (day.meals || []).map((meal: IMeal) => ({
-          ...meal,
-          name: meal.name || "Unnamed Meal",
-          nameUrdu: meal.nameUrdu || meal.name || "Unnamed Meal",
-          mealType: meal.mealType || "lunch",
-          time: meal.time || "12:00 PM",
-          description: meal.description || "",
-          nutrition: {
-            calories: meal.nutrition?.calories || 0,
-            protein: meal.nutrition?.protein || 0,
-            carbs: meal.nutrition?.carbs || 0,
-            fats: meal.nutrition?.fats || 0,
-            fiber: meal.nutrition?.fiber || 0,
-          },
-          ingredients: meal.ingredients || [],
-          recipe: meal.recipe || {
-            prepTime: 15,
-            cookTime: 20,
-            steps: ["Prepare ingredients", "Cook as directed", "Serve hot"],
-            tips: "Adjust seasoning to taste",
-          },
-          healthBenefits: meal.healthBenefits || [],
-          alternatives: meal.alternatives || [],
-        }));
+        // Ensure all meals have required nutrition data with realistic defaults
+        fixedDay.meals = (day.meals || []).map((meal: IMeal, mealIndex: number) => {
+          const mealType = meal.mealType || this.inferMealType(mealIndex);
+          const defaultNutrition = this.getDefaultNutrition(mealType);
 
-        // Recalculate daily totals if missing or zero
-        if (!fixedDay.dailyTotals || fixedDay.dailyTotals.calories === 0) {
-          fixedDay.dailyTotals = this.calculateDailyTotals(fixedDay.meals);
+          return {
+            ...meal,
+            name: meal.name || "Traditional Pakistani Dish",
+            nameUrdu: meal.nameUrdu || meal.name || "روایتی پاکستانی پکوان",
+            mealType: mealType,
+            time: meal.time || this.getDefaultMealTime(mealType),
+            description: meal.description || "A nutritious Pakistani meal prepared with fresh ingredients.",
+            nutrition: {
+              calories: meal.nutrition?.calories && meal.nutrition.calories > 0 
+                ? meal.nutrition.calories 
+                : defaultNutrition.calories,
+              protein: meal.nutrition?.protein && meal.nutrition.protein > 0 
+                ? meal.nutrition.protein 
+                : defaultNutrition.protein,
+              carbs: meal.nutrition?.carbs && meal.nutrition.carbs > 0 
+                ? meal.nutrition.carbs 
+                : defaultNutrition.carbs,
+              fats: meal.nutrition?.fats && meal.nutrition.fats > 0 
+                ? meal.nutrition.fats 
+                : defaultNutrition.fats,
+              fiber: meal.nutrition?.fiber && meal.nutrition.fiber > 0 
+                ? meal.nutrition.fiber 
+                : defaultNutrition.fiber,
+            },
+            ingredients: meal.ingredients && meal.ingredients.length > 0 
+              ? meal.ingredients 
+              : this.getDefaultIngredients(mealType),
+            recipe: {
+              prepTime: meal.recipe?.prepTime && meal.recipe.prepTime > 0 ? meal.recipe.prepTime : 15,
+              cookTime: meal.recipe?.cookTime && meal.recipe.cookTime > 0 ? meal.recipe.cookTime : 25,
+              steps: meal.recipe?.steps && meal.recipe.steps.length > 0 
+                ? meal.recipe.steps 
+                : ["Prepare all ingredients", "Heat oil in a pan", "Cook ingredients as required", "Season to taste and serve hot"],
+              tips: meal.recipe?.tips || "Adjust seasoning according to your preference",
+            },
+            healthBenefits: meal.healthBenefits && meal.healthBenefits.length > 0 
+              ? meal.healthBenefits 
+              : ["Provides essential nutrients", "Supports overall health"],
+            alternatives: meal.alternatives && meal.alternatives.length > 0 
+              ? meal.alternatives 
+              : ["Similar dish with chicken", "Vegetarian version available"],
+          };
+        });
+
+        // Recalculate daily totals from meals
+        fixedDay.dailyTotals = this.calculateDailyTotals(fixedDay.meals);
+        
+        // Track for summary calculation
+        if (fixedDay.dailyTotals.calories > 0) {
+          totalDailyCalories += fixedDay.dailyTotals.calories;
+          daysWithData++;
         }
 
         return fixedDay;
@@ -410,54 +441,223 @@ class OpenAIService {
           proteinPercent: 30,
           fatsPercent: 25,
         },
-        estimatedWeeklyCostPKR: 5000,
-        estimatedMonthlyCostPKR: 20000,
-        keyFeatures: ["Balanced nutrition", "Pakistani cuisine"],
-        expectedOutcomes: ["Improved health", "Better energy levels"],
+        estimatedWeeklyCostPKR: 7000,
+        estimatedMonthlyCostPKR: 28000,
+        keyFeatures: [
+          "Balanced nutrition tailored to your goals",
+          "Traditional Pakistani recipes",
+          "Budget-friendly ingredients",
+        ],
+        expectedOutcomes: [
+          "Improved energy levels",
+          "Better nutritional intake",
+          "Progress towards health goals",
+        ],
       };
     }
 
-    if (
-      !mealPlan.summary.totalCaloriesPerDay ||
-      mealPlan.summary.totalCaloriesPerDay === 0
-    ) {
-      if (mealPlan.dailyMeals.length > 0) {
-        const avgCalories =
-          mealPlan.dailyMeals.reduce(
-            (sum: number, day: IDailyMeals) => sum + day.dailyTotals.calories,
-            0
-          ) / mealPlan.dailyMeals.length;
-        mealPlan.summary.totalCaloriesPerDay = Math.round(avgCalories);
+    // Fix totalCaloriesPerDay if missing or zero
+    if (!mealPlan.summary.totalCaloriesPerDay || mealPlan.summary.totalCaloriesPerDay === 0) {
+      if (daysWithData > 0) {
+        mealPlan.summary.totalCaloriesPerDay = Math.round(totalDailyCalories / daysWithData);
+      } else {
+        mealPlan.summary.totalCaloriesPerDay = 2000;
       }
+    }
+
+    // Validate and fix macroBreakdown to ensure it sums to 100
+    if (!mealPlan.summary.macroBreakdown) {
+      mealPlan.summary.macroBreakdown = {
+        carbsPercent: 45,
+        proteinPercent: 30,
+        fatsPercent: 25,
+      };
+    } else {
+      const { carbsPercent, proteinPercent, fatsPercent } = mealPlan.summary.macroBreakdown;
+      const total = (carbsPercent || 0) + (proteinPercent || 0) + (fatsPercent || 0);
+      
+      if (total !== 100 || !carbsPercent || !proteinPercent || !fatsPercent) {
+        // Recalculate from actual meal data if possible
+        const macros = this.calculateAverageMacros(mealPlan.dailyMeals);
+        mealPlan.summary.macroBreakdown = macros;
+      }
+    }
+
+    // Ensure cost estimates are present
+    if (!mealPlan.summary.estimatedWeeklyCostPKR || mealPlan.summary.estimatedWeeklyCostPKR === 0) {
+      mealPlan.summary.estimatedWeeklyCostPKR = this.estimateCostFromMeals(mealPlan.dailyMeals, 7);
+    }
+    if (!mealPlan.summary.estimatedMonthlyCostPKR || mealPlan.summary.estimatedMonthlyCostPKR === 0) {
+      mealPlan.summary.estimatedMonthlyCostPKR = mealPlan.summary.estimatedWeeklyCostPKR * 4;
+    }
+
+    // Ensure arrays have content
+    if (!mealPlan.summary.keyFeatures || mealPlan.summary.keyFeatures.length === 0) {
+      mealPlan.summary.keyFeatures = [
+        "Balanced nutrition tailored to your goals",
+        "Traditional Pakistani recipes",
+        "Budget-friendly ingredients",
+      ];
+    }
+    if (!mealPlan.summary.expectedOutcomes || mealPlan.summary.expectedOutcomes.length === 0) {
+      mealPlan.summary.expectedOutcomes = [
+        "Improved energy levels",
+        "Better nutritional intake",
+        "Progress towards health goals",
+      ];
     }
 
     // Ensure shopping list exists
     if (!mealPlan.shoppingList || mealPlan.shoppingList.length === 0) {
-      mealPlan.shoppingList = this.generateShoppingListFromMeals(
-        mealPlan.dailyMeals
-      );
+      mealPlan.shoppingList = this.generateShoppingListFromMeals(mealPlan.dailyMeals);
     }
 
     // Ensure other required fields
-    mealPlan.weeklyTips = mealPlan.weeklyTips || [
-      "Plan your meals ahead of time",
-      "Stay hydrated throughout the day",
-      "Eat slowly and mindfully",
-    ];
+    mealPlan.weeklyTips = mealPlan.weeklyTips && mealPlan.weeklyTips.length > 0 
+      ? mealPlan.weeklyTips 
+      : [
+          "Plan your meals ahead of time to save money and reduce waste",
+          "Stay hydrated - drink at least 8 glasses of water daily",
+          "Eat slowly and mindfully to improve digestion",
+          "Include a variety of colorful vegetables in your meals",
+        ];
 
     mealPlan.healthWarnings = mealPlan.healthWarnings || [];
-    mealPlan.mealPrepStrategies = mealPlan.mealPrepStrategies || [
-      "Prepare ingredients in bulk on weekends",
-      "Store pre-cut vegetables in airtight containers",
-    ];
+    mealPlan.mealPrepStrategies = mealPlan.mealPrepStrategies && mealPlan.mealPrepStrategies.length > 0
+      ? mealPlan.mealPrepStrategies
+      : [
+          "Prepare ingredients in bulk on weekends",
+          "Store pre-cut vegetables in airtight containers",
+          "Cook grains and lentils in batches for the week",
+        ];
     mealPlan.substitutionGuide = mealPlan.substitutionGuide || [];
 
     // Ensure disclaimer exists
     validatedResponse.disclaimer =
       validatedResponse.disclaimer ||
-      "This meal plan is for informational purposes only and should not replace professional medical advice. Please consult with a healthcare provider before making significant dietary changes.";
+      "This meal plan is for informational purposes only and should not replace professional medical advice. Please consult with a healthcare provider before making significant dietary changes, especially if you have existing health conditions.";
 
     return validatedResponse;
+  }
+
+  // Helper methods for validation
+  private getDayName(index: number): string {
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    return days[index % 7];
+  }
+
+  private getDefaultDailyTip(index: number): string {
+    const tips = [
+      "Start your day with a glass of warm water with lemon.",
+      "Include protein in every meal to stay fuller longer.",
+      "Take a short walk after meals to aid digestion.",
+      "Avoid screens while eating - focus on your food.",
+      "Try to eat dinner at least 2 hours before bedtime.",
+      "Include fermented foods like yogurt for gut health.",
+      "Plan your meals for the upcoming week today.",
+    ];
+    return tips[index % tips.length];
+  }
+
+  private inferMealType(mealIndex: number): IMeal["mealType"] {
+    const types: IMeal["mealType"][] = ["breakfast", "morning_snack", "lunch", "evening_snack", "dinner", "late_snack"];
+    return types[mealIndex % types.length] || "lunch";
+  }
+
+  private getDefaultMealTime(mealType: string): string {
+    const times: { [key: string]: string } = {
+      breakfast: "8:00 AM",
+      morning_snack: "11:00 AM",
+      lunch: "1:00 PM",
+      evening_snack: "5:00 PM",
+      dinner: "8:00 PM",
+      late_snack: "10:00 PM",
+    };
+    return times[mealType] || "12:00 PM";
+  }
+
+  private getDefaultNutrition(mealType: string): INutrition {
+    const nutritionByType: { [key: string]: INutrition } = {
+      breakfast: { calories: 400, protein: 20, carbs: 50, fats: 15, fiber: 6 },
+      morning_snack: { calories: 150, protein: 8, carbs: 20, fats: 5, fiber: 3 },
+      lunch: { calories: 600, protein: 35, carbs: 65, fats: 20, fiber: 8 },
+      evening_snack: { calories: 150, protein: 6, carbs: 22, fats: 5, fiber: 2 },
+      dinner: { calories: 550, protein: 30, carbs: 55, fats: 18, fiber: 7 },
+      late_snack: { calories: 100, protein: 5, carbs: 15, fats: 3, fiber: 2 },
+    };
+    return nutritionByType[mealType] || { calories: 450, protein: 25, carbs: 50, fats: 15, fiber: 5 };
+  }
+
+  private getDefaultIngredients(mealType: string): IMeal["ingredients"] {
+    // Return generic but realistic Pakistani ingredients based on meal type
+    if (mealType === "breakfast") {
+      return [
+        { name: "Whole wheat flour", nameUrdu: "گندم کا آٹا", quantity: "100g", estimatedCostPKR: 25 },
+        { name: "Eggs", nameUrdu: "انڈے", quantity: "2 pieces", estimatedCostPKR: 60 },
+        { name: "Milk", nameUrdu: "دودھ", quantity: "1 cup", estimatedCostPKR: 40 },
+        { name: "Cooking oil", nameUrdu: "کھانے کا تیل", quantity: "1 tbsp", estimatedCostPKR: 15 },
+      ];
+    }
+    return [
+      { name: "Chicken", nameUrdu: "مرغی", quantity: "200g", estimatedCostPKR: 150 },
+      { name: "Onions", nameUrdu: "پیاز", quantity: "2 medium", estimatedCostPKR: 30 },
+      { name: "Tomatoes", nameUrdu: "ٹماٹر", quantity: "2 medium", estimatedCostPKR: 40 },
+      { name: "Rice", nameUrdu: "چاول", quantity: "1 cup", estimatedCostPKR: 50 },
+      { name: "Spices", nameUrdu: "مصالحے", quantity: "as needed", estimatedCostPKR: 20 },
+    ];
+  }
+
+  private calculateAverageMacros(dailyMeals: IDailyMeals[]): { carbsPercent: number; proteinPercent: number; fatsPercent: number } {
+    let totalProtein = 0;
+    let totalCarbs = 0;
+    let totalFats = 0;
+    let mealCount = 0;
+
+    dailyMeals.forEach((day) => {
+      day.meals.forEach((meal) => {
+        if (meal.nutrition) {
+          totalProtein += meal.nutrition.protein || 0;
+          totalCarbs += meal.nutrition.carbs || 0;
+          totalFats += meal.nutrition.fats || 0;
+          mealCount++;
+        }
+      });
+    });
+
+    if (mealCount === 0 || (totalProtein + totalCarbs + totalFats) === 0) {
+      return { carbsPercent: 45, proteinPercent: 30, fatsPercent: 25 };
+    }
+
+    // Calculate calories from macros (protein: 4cal/g, carbs: 4cal/g, fats: 9cal/g)
+    const proteinCals = totalProtein * 4;
+    const carbsCals = totalCarbs * 4;
+    const fatsCals = totalFats * 9;
+    const totalCals = proteinCals + carbsCals + fatsCals;
+
+    if (totalCals === 0) {
+      return { carbsPercent: 45, proteinPercent: 30, fatsPercent: 25 };
+    }
+
+    return {
+      carbsPercent: Math.round((carbsCals / totalCals) * 100),
+      proteinPercent: Math.round((proteinCals / totalCals) * 100),
+      fatsPercent: Math.round((fatsCals / totalCals) * 100),
+    };
+  }
+
+  private estimateCostFromMeals(dailyMeals: IDailyMeals[], days: number): number {
+    let totalCost = 0;
+    
+    dailyMeals.slice(0, days).forEach((day) => {
+      day.meals.forEach((meal) => {
+        meal.ingredients?.forEach((ing) => {
+          totalCost += ing.estimatedCostPKR || 0;
+        });
+      });
+    });
+
+    // If no cost data, return a reasonable default
+    return totalCost > 0 ? totalCost : 7000;
   }
 
   private calculateDailyTotals(meals: IMeal[]): INutrition {
@@ -526,24 +726,73 @@ Your meal plans MUST:
 7. Include both Urdu and English recipe names where applicable
 8. Account for Pakistani climate and seasonal food availability
 
-CRITICAL REQUIREMENTS:
-- ALWAYS provide complete nutritional information for EVERY meal (calories, protein, carbs, fats, fiber)
-- ALWAYS include ALL ingredients with quantities and estimated costs in PKR
-- ALWAYS provide step-by-step cooking instructions
-- ALWAYS include health benefits and alternatives for each meal
-- NEVER skip any required fields - all data must be complete
-- NEVER provide empty arrays or zero values for nutrition
-- Calorie values should be realistic (breakfast: 300-500, lunch: 500-700, dinner: 500-700, snacks: 100-200)`;
+═══════════════════════════════════════════════════════════════════════════════
+MANDATORY DATA REQUIREMENTS - FAILURE TO COMPLY WILL RESULT IN INVALID OUTPUT
+═══════════════════════════════════════════════════════════════════════════════
+
+For EVERY SINGLE MEAL, you MUST provide:
+1. NUTRITION (all fields REQUIRED, NO ZEROS allowed):
+   - calories: realistic value (breakfast: 300-500, lunch: 500-700, dinner: 500-700, snacks: 100-200)
+   - protein: grams (typically 15-40g per meal)
+   - carbs: grams (typically 30-80g per meal)
+   - fats: grams (typically 10-30g per meal)
+   - fiber: grams (typically 3-10g per meal)
+
+2. INGREDIENTS (minimum 4 ingredients per meal):
+   - name: English name
+   - nameUrdu: Urdu name
+   - quantity: specific amount (e.g., "200g", "2 cups", "1 tablespoon")
+   - estimatedCostPKR: realistic cost in Pakistani Rupees
+
+3. RECIPE (all fields REQUIRED):
+   - prepTime: minutes (number, e.g., 15)
+   - cookTime: minutes (number, e.g., 20)
+   - steps: array of at least 4 detailed cooking steps
+   - tips: helpful cooking tip as a string
+
+4. OTHER REQUIRED FIELDS:
+   - name: dish name in English
+   - nameUrdu: dish name in Urdu
+   - mealType: breakfast/lunch/dinner/morning_snack/evening_snack/late_snack
+   - time: meal time (e.g., "8:00 AM")
+   - description: 1-2 sentence description
+   - healthBenefits: array of at least 2 health benefits
+   - alternatives: array of at least 2 alternative dishes
+
+For SUMMARY (all fields REQUIRED):
+- totalCaloriesPerDay: calculated daily average (1500-2500 typically)
+- macroBreakdown: carbsPercent + proteinPercent + fatsPercent MUST equal 100
+- estimatedWeeklyCostPKR: realistic weekly cost (3000-10000 PKR typically)
+- estimatedMonthlyCostPKR: weekly cost × 4
+- keyFeatures: array of at least 3 features
+- expectedOutcomes: array of at least 3 outcomes
+
+For DAILY TOTALS (calculated by summing all meals for that day):
+- calories, protein, carbs, fats, fiber: sum of all meals for that day
+
+VALIDATION CHECKLIST (verify before responding):
+✓ Every meal has calories > 0
+✓ Every meal has protein > 0
+✓ Every meal has carbs > 0
+✓ Every meal has fats > 0
+✓ Every meal has fiber > 0
+✓ Every meal has at least 4 ingredients
+✓ Every meal has at least 4 recipe steps
+✓ Daily totals are correctly calculated
+✓ macroBreakdown percentages sum to 100`;
   }
 
   private getUserPrompt(userProfile: any, duration: string): string {
     const daysCount = parseInt(duration) || 7;
     const bmi = this.calculateBMI(userProfile.weight, userProfile.height);
     const targetCalories = this.calculateTargetCalories(userProfile);
+    const mealsPerDay = userProfile.mealsPerDay || 3;
 
     return `Create a COMPLETE and DETAILED ${daysCount}-day meal plan for the following individual.
 
-CRITICAL: You MUST provide EXACTLY ${daysCount} days of meal plans with COMPLETE data for every field.
+═══════════════════════════════════════════════════════════════════════════════
+CRITICAL: COMPLETE DATA IS MANDATORY - DO NOT SKIP ANY FIELDS
+═══════════════════════════════════════════════════════════════════════════════
 
 PERSONAL INFORMATION:
 - Age: ${userProfile.age} years
@@ -573,7 +822,7 @@ LIFESTYLE:
 GOALS & PREFERENCES:
 - Primary Goal: ${userProfile.primaryGoal}
 - Timeline: ${userProfile.timeline || "Not specified"}
-- Meals Per Day: ${userProfile.mealsPerDay}
+- Meals Per Day: ${mealsPerDay}
 - Regional Preference: ${userProfile.regionalPreference || "All Pakistani"}
 - Fasting Requirements: ${userProfile.fastingRequirements ? "Yes" : "No"}
 
@@ -584,33 +833,74 @@ PRACTICAL CONSTRAINTS:
 - Eating Out: ${userProfile.eatingOutFrequency || "Rarely"}
 - Location: ${userProfile.city || "Pakistan"}
 
-TARGET NUTRITION:
+TARGET NUTRITION (MUST be reflected in meal plan):
 - Daily Calories: ${targetCalories} kcal (±100)
-- Macro Distribution: Carbs 45%, Protein 30%, Fats 25%
+- Macro Distribution: Carbs 45-50%, Protein 25-30%, Fats 20-25%
 
-MEAL STRUCTURE:
-${this.getMealStructure(userProfile.mealsPerDay)}
+MEAL STRUCTURE (${mealsPerDay} meals per day):
+${this.getMealStructure(mealsPerDay)}
 
 CRITICAL REQUIREMENTS FOR ${userProfile.medicalConditions?.length > 0 ? "HEALTH CONDITIONS" : "GOALS"}:
 ${this.generateCriticalRequirements(userProfile)}
 
-MANDATORY OUTPUT REQUIREMENTS:
-1. Provide EXACTLY ${daysCount} days in the dailyMeals array (Day 1 through Day ${daysCount})
-2. Each meal MUST have complete nutrition data (calories, protein, carbs, fats, fiber) - NO ZEROS
-3. Each meal MUST have a complete ingredients list with quantities and costs in PKR
-4. Each meal MUST have complete recipe with prep time, cook time, and steps
-5. Each meal MUST have health benefits and alternatives
-6. Daily totals MUST be calculated correctly from individual meals
-7. Shopping list MUST include all ingredients with categories and costs
-8. Include variety - avoid repeating the same meals on consecutive days
-9. All costs must be realistic for Pakistani markets (current prices)
-10. Include both English and Urdu names for dishes
+═══════════════════════════════════════════════════════════════════════════════
+OUTPUT STRUCTURE REQUIREMENTS - ALL FIELDS MANDATORY
+═══════════════════════════════════════════════════════════════════════════════
 
-VERIFY YOUR RESPONSE:
-- Count the days: You must have exactly ${daysCount} day objects
-- Check nutrition: Every meal must have non-zero calorie values
-- Check ingredients: Every meal must have at least 3 ingredients
-- Check recipes: Every meal must have at least 3 cooking steps`;
+You MUST provide EXACTLY ${daysCount} days in dailyMeals array.
+Each day MUST have EXACTLY ${mealsPerDay} meals.
+
+FOR EACH MEAL (${daysCount} days × ${mealsPerDay} meals = ${daysCount * mealsPerDay} total meals):
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FIELD              │ REQUIREMENT                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ name               │ Dish name in English (e.g., "Chicken Karahi")         │
+│ nameUrdu           │ Dish name in Urdu (e.g., "مرغ کڑاہی")                   │
+│ mealType           │ breakfast/lunch/dinner/morning_snack/evening_snack    │
+│ time               │ Time string (e.g., "8:00 AM")                         │
+│ description        │ 1-2 sentences describing the dish                     │
+│ nutrition.calories │ NUMBER > 0 (breakfast: 350-500, lunch/dinner: 500-700)│
+│ nutrition.protein  │ NUMBER > 0 (typically 15-40g)                         │
+│ nutrition.carbs    │ NUMBER > 0 (typically 30-80g)                         │
+│ nutrition.fats     │ NUMBER > 0 (typically 10-30g)                         │
+│ nutrition.fiber    │ NUMBER > 0 (typically 3-10g)                          │
+│ ingredients        │ ARRAY of 4+ items with name, nameUrdu, quantity, cost │
+│ recipe.prepTime    │ NUMBER in minutes (e.g., 15)                          │
+│ recipe.cookTime    │ NUMBER in minutes (e.g., 20)                          │
+│ recipe.steps       │ ARRAY of 4+ detailed steps                            │
+│ recipe.tips        │ STRING with cooking tip                               │
+│ healthBenefits     │ ARRAY of 2+ benefits                                  │
+│ alternatives       │ ARRAY of 2+ alternative dishes                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+FOR DAILY TOTALS (calculate by summing all meals for that day):
+- calories: SUM of all meal calories for that day (should be ~${targetCalories})
+- protein: SUM of all meal protein
+- carbs: SUM of all meal carbs
+- fats: SUM of all meal fats
+- fiber: SUM of all meal fiber
+
+FOR SUMMARY:
+- totalCaloriesPerDay: ${targetCalories} (as calculated)
+- macroBreakdown: MUST sum to 100% (e.g., carbs: 45, protein: 30, fats: 25)
+- estimatedWeeklyCostPKR: realistic cost (5000-15000 PKR range)
+- estimatedMonthlyCostPKR: weekly × 4
+
+═══════════════════════════════════════════════════════════════════════════════
+FINAL VERIFICATION BEFORE RESPONDING
+═══════════════════════════════════════════════════════════════════════════════
+□ I have provided exactly ${daysCount} days of meals
+□ Each day has exactly ${mealsPerDay} meals
+□ EVERY meal has calories > 0 (NOT zero)
+□ EVERY meal has protein > 0 (NOT zero)
+□ EVERY meal has carbs > 0 (NOT zero)
+□ EVERY meal has fats > 0 (NOT zero)
+□ EVERY meal has fiber > 0 (NOT zero)
+□ EVERY meal has at least 4 ingredients with costs
+□ EVERY meal has at least 4 recipe steps
+□ Daily totals are correctly summed from meals
+□ macroBreakdown percentages sum to exactly 100
+□ All costs are in PKR and realistic for Pakistani markets`;
   }
 
   private getMealStructure(mealsPerDay: number): string {

@@ -2,9 +2,11 @@
 
 export interface ISupportTicket {
   id: string;
+  ticketNumber: string;
   userId: string;
   subject: string;
   description: string;
+  category: string;
   status: "open" | "resolved";
   priority: "Low" | "Medium" | "High";
   resolutionNote?: string | null;
@@ -17,6 +19,7 @@ export interface ISupportTicket {
 export interface ICreateTicketDTO {
   subject: string;
   description: string;
+  category?: string;
   priority?: "Low" | "Medium" | "High";
 }
 

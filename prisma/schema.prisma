@@ -63,9 +63,11 @@ model Article {
 
 model SupportTicket {
   id             String       @id @default(uuid())
+  ticketNumber   String       @unique
   userId         String
   subject        String       @db.VarChar(255)
   description    String       @db.Text
+  category       String       @default("General")
   status         TicketStatus @default(open)
   priority       Priority     @default(Medium)
   resolutionNote String?      @db.Text
