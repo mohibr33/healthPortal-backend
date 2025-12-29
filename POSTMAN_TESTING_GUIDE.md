@@ -13,14 +13,18 @@ http://localhost:5050
 **Method:** `POST`  
 **URL:** `http://localhost:5050/api/users/register`
 
+**Description:** Registers user in a `PendingRegistration` table. User must verify OTP before they can login.
+
 **Body (JSON):**
 
 ```json
 {
-  "name": "Ahmed Khan",
+  "firstName": "Ahmed",
+  "lastName": "Khan",
   "email": "ahmed.khan@example.com",
   "password": "Password123!",
-  "phone": "+923001234567"
+  "phone": "+923001234567",
+  "gender": "male"
 }
 ```
 
@@ -31,11 +35,12 @@ http://localhost:5050
   "success": true,
   "message": "Registration successful. Please verify your email with OTP.",
   "data": {
-    "userId": "user-id-here",
     "email": "ahmed.khan@example.com"
   }
 }
 ```
+
+**Note:** If you register but don't verify, you can re-register with the same email. The old pending registration will be replaced.
 
 ---
 
@@ -43,6 +48,8 @@ http://localhost:5050
 
 **Method:** `POST`  
 **URL:** `http://localhost:5050/api/users/verify-otp`
+
+**Description:** Verifies the OTP and creates the actual user account. OTP is valid for 10 minutes.
 
 **Body (JSON):**
 
@@ -53,7 +60,51 @@ http://localhost:5050
 }
 ```
 
-**Note:** Check your email for the actual OTP code.
+**Expected Response:**
+
+```json
+{
+  "success": true,
+  "message": "Email verified successfully. You can now login."
+}
+```
+
+**Note:** Check your email for the actual OTP code. OTP expires after 10 minutes.
+
+---
+
+## 2a. Resend OTP (If OTP expired)
+
+**Method:** `POST`  
+**URL:** `http://localhost:5050/api/users/resend-otp`
+
+**Description:** Resends a new OTP if the previous one expired. Generates fresh 10-minute expiry.
+
+**Body (JSON):**
+
+```json
+{
+  "email": "ahmed.khan@example.com"
+}
+```
+
+**Expected Response:**
+
+```json
+{
+  "success": true,
+  "message": "OTP resent successfully. Please check your email."
+}
+```
+
+**Error Response (if no pending registration):**
+
+```json
+{
+  "success": false,
+  "message": "No pending registration found for this email"
+}
+```
 
 ---
 

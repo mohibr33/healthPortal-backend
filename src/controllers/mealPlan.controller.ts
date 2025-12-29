@@ -67,6 +67,7 @@ export const getMyMealPlans = async (
           totalCalories: plan.totalCalories,
           estimatedCost: plan.estimatedCost,
           createdAt: plan.createdAt,
+          mealPlanData: plan.mealPlanData,
         })),
         pagination: {
           total,

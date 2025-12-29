@@ -103,6 +103,7 @@ export interface IMedicineResponse {
     pregnancyCategory?: string | null;
     drugInteractions?: string | null;
   };
+  allergyWarnings?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

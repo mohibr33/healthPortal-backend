@@ -1,18 +1,18 @@
 import { Request, Response } from "express";
 import userService from "../services/user.service";
 import * as jwt from "jsonwebtoken";
-// import { IAuthRequest, IJWTPayload } from "../types/user.types";
-import { IAuthRequest } from "../types/user.types"; // Removed IJWTPayload
+import { IAuthRequest } from "../types/user.types";
 import prisma from "../config/database";
 import emailService from "../utils/email.util";
+import bcrypt from "bcryptjs";
 
 class UserController {
-  // Register a new user
+  // Register a new user - stores in PendingRegistration until verified
   async register(req: Request, res: Response): Promise<Response> {
     try {
       const { firstName, lastName, email, password, gender, phone } = req.body;
 
-      // Check if user already exists
+      // Check if verified user already exists
       const existingUser = await userService.findUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({
@@ -21,19 +21,32 @@ class UserController {
         });
       }
 
-      // Create new user
-      const user = await userService.createUser({
-        firstName,
-        lastName,
-        email,
-        password,
-        gender,
-        phone,
+      // Delete any existing pending registration for this email
+      await prisma.pendingRegistration.deleteMany({
+        where: { email },
       });
 
       // Generate OTP
       const otp = userService.generateOTP();
-      await userService.saveOTP(email, otp);
+      const otpExpiry = new Date();
+      otpExpiry.setMinutes(otpExpiry.getMinutes() + 10); // 10 minutes expiry
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create pending registration
+      await prisma.pendingRegistration.create({
+        data: {
+          firstName,
+          lastName,
+          email,
+          password: hashedPassword,
+          gender,
+          phone,
+          otp,
+          otpExpiry,
+        },
+      });
 
       // Send OTP via email
       const emailSent = await emailService.sendOTPEmail(email, otp);
@@ -44,9 +57,8 @@ class UserController {
 
       return res.status(201).json({
         success: true,
-        message:
-          "User registered successfully. Please verify your email with the OTP sent.",
-        data: { user },
+        message: "Registration initiated. Please verify your email with the OTP sent.",
+        data: { email },
       });
     } catch (error: any) {
       console.error("Registration error:", error);
@@ -58,29 +70,132 @@ class UserController {
     }
   }
 
-  // Verify OTP
+  // Verify OTP - creates actual user after verification
   async verifyOTP(req: Request, res: Response): Promise<Response> {
     try {
       const { email, otp } = req.body;
 
-      const result = await userService.verifyOTP(email, otp);
+      // Find pending registration
+      const pending = await prisma.pendingRegistration.findUnique({
+        where: { email },
+      });
 
-      if (!result.success) {
-        return res.status(400).json(result);
+      if (!pending) {
+        return res.status(404).json({
+          success: false,
+          message: "No pending registration found. Please register again.",
+        });
       }
+
+      // Verify OTP
+      if (pending.otp !== otp) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid OTP",
+        });
+      }
+
+      // Check if OTP expired
+      if (new Date() > pending.otpExpiry) {
+        return res.status(400).json({
+          success: false,
+          message: "OTP has expired. Please request a new one.",
+        });
+      }
+
+      // Create actual user (already verified)
+      const user = await prisma.user.create({
+        data: {
+          firstName: pending.firstName,
+          lastName: pending.lastName,
+          email: pending.email,
+          password: pending.password,
+          gender: pending.gender,
+          phone: pending.phone,
+          isVerified: true,
+        },
+      });
+
+      // Delete pending registration
+      await prisma.pendingRegistration.delete({
+        where: { email },
+      });
 
       // Send welcome email
-      const user = await userService.findUserByEmail(email);
-      if (user) {
-        await emailService.sendWelcomeEmail(email, user.firstName);
-      }
+      await emailService.sendWelcomeEmail(email, user.firstName);
 
-      return res.status(200).json(result);
+      return res.status(200).json({
+        success: true,
+        message: "Email verified successfully. You can now login.",
+      });
     } catch (error: any) {
       console.error("OTP verification error:", error);
       return res.status(500).json({
         success: false,
         message: "Error verifying OTP",
+        error: error.message,
+      });
+    }
+  }
+
+  // Resend OTP for pending registration
+  async resendOTP(req: Request, res: Response): Promise<Response> {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: "Email is required",
+        });
+      }
+
+      // Find pending registration
+      const pending = await prisma.pendingRegistration.findUnique({
+        where: { email },
+      });
+
+      if (!pending) {
+        return res.status(404).json({
+          success: false,
+          message: "No pending registration found. Please register again.",
+        });
+      }
+
+      // Generate new OTP
+      const otp = userService.generateOTP();
+      const otpExpiry = new Date();
+      otpExpiry.setMinutes(otpExpiry.getMinutes() + 10);
+
+      // Update pending registration with new OTP
+      await prisma.pendingRegistration.update({
+        where: { email },
+        data: {
+          otp,
+          otpExpiry,
+        },
+      });
+
+      // Send OTP via email
+      const emailSent = await emailService.sendOTPEmail(email, otp);
+
+      if (!emailSent) {
+        console.warn(`Failed to send OTP email to ${email}. OTP: ${otp}`);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to send OTP email. Please try again.",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "OTP sent successfully. Please check your email.",
+      });
+    } catch (error: any) {
+      console.error("Resend OTP error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error resending OTP",
         error: error.message,
       });
     }
@@ -116,14 +231,6 @@ class UserController {
         return res.status(401).json({
           success: false,
           message: "Invalid email or password",
-        });
-      }
-
-      // Check if user is verified
-      if (!user.isVerified) {
-        return res.status(403).json({
-          success: false,
-          message: "Please verify your email first",
         });
       }
 
@@ -211,87 +318,88 @@ class UserController {
 
   // Request password reset
   async requestPasswordReset(req: Request, res: Response): Promise<Response> {
-  try {
-    const { email } = req.body;
+    try {
+      const { email } = req.body;
 
-    const user = await userService.findUserByEmail(email);
-    if (!user) {
-      return res.status(404).json({
+      const user = await userService.findUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      // Generate 6-digit OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min expiry
+
+      // Save OTP and expiry in DB
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otp,
+          otpExpiry,
+        },
+      });
+
+      // Send OTP via email
+      await emailService.sendOTPEmail(email, otp);
+
+      return res.status(200).json({
+        success: true,
+        message: "OTP sent successfully. Please check your email.",
+      });
+    } catch (error: any) {
+      console.error("Request password reset error:", error);
+      return res.status(500).json({
         success: false,
-        message: "User not found",
+        message: "Failed to send OTP",
       });
     }
-
-    // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 min expiry
-
-    // Save OTP and expiry in DB
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        otp,
-        otpExpiry,
-      },
-    });
-
-    // Send OTP via email
-    await emailService.sendOTPEmail(email, otp);
-
-    return res.status(200).json({
-      success: true,
-      message: "OTP sent successfully. Please check your email.",
-    });
-  } catch (error: any) {
-    console.error("Request password reset error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to send OTP",
-    });
   }
-}
+
   // Reset password
   async resetPassword(req: Request, res: Response): Promise<Response> {
-  try {
-    const { email, otp, newPassword } = req.body;
+    try {
+      const { email, otp, newPassword } = req.body;
 
-    const user = await userService.findUserByEmail(email);
-    if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      const user = await userService.findUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+
+      if (!user.otp || user.otp !== otp) {
+        return res.status(400).json({ success: false, message: "Invalid OTP" });
+      }
+
+      if (user.otpExpiry && new Date() > user.otpExpiry) {
+        return res.status(400).json({ success: false, message: "OTP has expired" });
+      }
+
+      // Update password (hash it before saving)
+      await userService.updateUser(user.id, { password: newPassword });
+
+      // Clear OTP fields
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          otp: null,
+          otpExpiry: null,
+        },
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: "Password reset successfully",
+      });
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error resetting password",
+      });
     }
-
-    if (!user.otp || user.otp !== otp) {
-      return res.status(400).json({ success: false, message: "Invalid OTP" });
-    }
-
-    if (user.otpExpiry && new Date() > user.otpExpiry) {
-      return res.status(400).json({ success: false, message: "OTP has expired" });
-    }
-
-    // Update password (hash it before saving)
-    await userService.updateUser(user.id, { password: newPassword });
-
-    // Clear OTP fields
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        otp: null,
-        otpExpiry: null,
-      },
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: "Password reset successfully",
-    });
-  } catch (error: any) {
-    console.error("Reset password error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Error resetting password",
-    });
   }
-}
 
   // Get all users (admin)
   async getAllUsers(req: Request, res: Response): Promise<Response> {

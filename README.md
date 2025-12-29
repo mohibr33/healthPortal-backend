@@ -4,8 +4,9 @@ A comprehensive digital health assistant API built with Node.js, Express, Prisma
 
 ## Features
 
-- ✅ User Registration & Authentication
-- ✅ Email Verification with OTP
+- ✅ User Registration & Authentication (with pending verification flow)
+- ✅ Email Verification with OTP (10-minute expiry)
+- ✅ Resend OTP functionality
 - ✅ Password Reset via Email
 - ✅ JWT-based Authentication
 - ✅ **Google OAuth 2.0 Login**
@@ -17,6 +18,7 @@ A comprehensive digital health assistant API built with Node.js, Express, Prisma
 - ✅ Support Ticket System
 - ✅ Medicine Database (2443+ medicines)
 - ✅ AI-Powered Meal Planner (GPT-4o-mini)
+- ✅ AI Medical Chat with Voice & File Support
 - ✅ Medicine Reviews & Ratings
 
 ## Tech Stack

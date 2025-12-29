@@ -203,7 +203,7 @@ export interface IMealPlan {
 }
 
 export interface IGenerateMealPlanDTO {
-  duration: string; // "7" or "30"
+  duration: "7"; // Only 7-day plans supported
 }
 
 export interface IMealPlanResponse {

@@ -17,19 +17,38 @@ class MealPlanService {
       );
     }
 
+    console.log(`Starting meal plan generation for ${duration} days`);
+
     // Generate meal plan using AI
     const aiResponse: IMealPlanData = await openaiService.generateMealPlan(
       healthProfile,
       duration
     );
 
-    // Extract metadata from the properly structured response
-    const totalCalories =
-      aiResponse.mealPlan?.summary?.totalCaloriesPerDay || 2000;
+    // Calculate total calories for all days (not just per day)
+    const dailyMeals = aiResponse.mealPlan?.dailyMeals || [];
+    const actualDaysGenerated = dailyMeals.length;
+    
+    console.log(`AI generated ${actualDaysGenerated} days of meals`);
+
+    // Calculate total calories from all days
+    let totalCaloriesAllDays = 0;
+    dailyMeals.forEach((day: any) => {
+      const dayCalories = day.dailyTotals?.calories || 0;
+      totalCaloriesAllDays += dayCalories;
+    });
+
+    // If no daily totals, estimate from summary
+    if (totalCaloriesAllDays === 0) {
+      const caloriesPerDay = aiResponse.mealPlan?.summary?.totalCaloriesPerDay || 2000;
+      totalCaloriesAllDays = caloriesPerDay * actualDaysGenerated;
+    }
     
     // Get estimated cost from the new structure
     const estimatedCost =
       aiResponse.mealPlan?.summary?.estimatedWeeklyCostPKR || 0;
+
+    console.log(`Total calories for ${actualDaysGenerated} days: ${totalCaloriesAllDays}`);
 
     // Save meal plan to database
     const mealPlan = await prisma.mealPlan.create({
@@ -38,7 +57,7 @@ class MealPlanService {
         duration: `${duration} days`,
         userProfileData: JSON.parse(JSON.stringify(healthProfile)),
         mealPlanData: JSON.parse(JSON.stringify(aiResponse)),
-        totalCalories,
+        totalCalories: totalCaloriesAllDays,
         estimatedCost,
       },
     });
@@ -159,9 +178,15 @@ class MealPlanService {
       };
     });
 
+    // Calculate TOTAL calories for all days (not average)
+    const totalCaloriesAllDays = normalizedDailyMeals.reduce(
+      (sum: number, day: any) => sum + (day.dailyTotals?.calories || 0), 
+      0
+    );
+
     // Calculate average daily calories from normalized data
     const avgCalories = normalizedDailyMeals.length > 0
-      ? Math.round(normalizedDailyMeals.reduce((sum: number, day: any) => sum + day.dailyTotals.calories, 0) / normalizedDailyMeals.length)
+      ? Math.round(totalCaloriesAllDays / normalizedDailyMeals.length)
       : 2000;
 
     // Normalize summary
@@ -189,10 +214,13 @@ class MealPlanService {
       disclaimer: data.disclaimer || data.mealPlan?.disclaimer || "This meal plan is for informational purposes only.",
     };
 
-    // Update totalCalories if it was 0
+    // Calculate total calories for ALL days (not just per day average)
+    // Use stored value if valid, otherwise calculate from daily totals
     const totalCalories = mealPlan.totalCalories > 0 
       ? mealPlan.totalCalories 
-      : normalizedSummary.totalCaloriesPerDay * normalizedDailyMeals.length;
+      : totalCaloriesAllDays > 0 
+        ? totalCaloriesAllDays
+        : normalizedSummary.totalCaloriesPerDay * normalizedDailyMeals.length;
 
     return {
       ...mealPlan,

@@ -262,11 +262,12 @@ class OpenAIService {
 
   async generateMealPlan(
     userProfile: any,
-    duration: string
+    _duration: string
   ): Promise<IMealPlanData> {
+    // Only 7-day plans are supported
+    const daysCount = 7;
     const systemPrompt = this.getSystemPrompt();
-    const userPrompt = this.getUserPrompt(userProfile, duration);
-    const daysCount = parseInt(duration) || 7;
+    const userPrompt = this.getUserPrompt(userProfile, daysCount.toString());
 
     try {
       const completion = await this.openai.chat.completions.create({
@@ -297,8 +298,20 @@ class OpenAIService {
         throw new Error("Failed to parse meal plan response");
       }
 
+      // Fix day numbers to be correct (starting from 1)
+      if (parsedResponse.mealPlan?.dailyMeals) {
+        parsedResponse.mealPlan.dailyMeals = parsedResponse.mealPlan.dailyMeals.map(
+          (day, index) => ({
+            ...day,
+            day: index + 1,
+            dayName: this.getDayName(index),
+          })
+        );
+      }
+
       // Validate that we got the correct number of days
       const actualDays = parsedResponse.mealPlan?.dailyMeals?.length || 0;
+      
       if (actualDays < daysCount) {
         console.warn(
           `Expected ${daysCount} days but got ${actualDays}. Response may be incomplete.`
@@ -315,7 +328,6 @@ class OpenAIService {
     } catch (error: any) {
       console.error("OpenAI API Error:", error.message);
 
-      // Handle specific OpenAI errors
       if (error.code === "invalid_api_key") {
         throw new Error("OpenAI API key is invalid or not configured");
       }

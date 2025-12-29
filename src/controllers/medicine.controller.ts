@@ -3,9 +3,40 @@ import medicineService from "../services/medicine.service";
 import { IAuthRequest } from "../types/user.types";
 import { IMedicine, IMedicineResponse } from "../types/medicine.types";
 
+// Helper function to check allergy warnings for a medicine
+const checkAllergyWarnings = (medicine: IMedicine, allergies: string[]): string[] => {
+  if (!allergies || allergies.length === 0) return [];
+  
+  const warnings: string[] = [];
+  const fieldsToCheck = [
+    medicine.generics,
+    medicine.whenNotToUse,
+    medicine.sideEffects,
+    medicine.drugInteractions,
+    medicine.precautions,
+    medicine.title,
+  ];
+
+  for (const allergy of allergies) {
+    const allergyLower = allergy.toLowerCase().trim();
+    if (!allergyLower) continue;
+    
+    for (const field of fieldsToCheck) {
+      if (field && field.toLowerCase().includes(allergyLower)) {
+        if (!warnings.includes(allergy)) {
+          warnings.push(allergy);
+        }
+        break;
+      }
+    }
+  }
+
+  return warnings;
+};
+
 // Helper function to format medicine response
-const formatMedicineResponse = (medicine: IMedicine): IMedicineResponse => {
-  return {
+const formatMedicineResponse = (medicine: IMedicine, allergies: string[] = []): IMedicineResponse => {
+  const response: IMedicineResponse = {
     id: medicine.id,
     productId: medicine.productId,
     slug: medicine.slug,
@@ -35,6 +66,13 @@ const formatMedicineResponse = (medicine: IMedicine): IMedicineResponse => {
     createdAt: medicine.createdAt,
     updatedAt: medicine.updatedAt,
   };
+
+  // Add allergy warnings if allergies are provided
+  if (allergies.length > 0) {
+    response.allergyWarnings = checkAllergyWarnings(medicine, allergies);
+  }
+
+  return response;
 };
 
 // Create medicine (Admin)
@@ -100,6 +138,12 @@ export const getAllMedicines = async (
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
+    
+    // Parse allergies from query string
+    const allergiesParam = req.query.allergies as string;
+    const allergies = allergiesParam 
+      ? allergiesParam.split(",").map(a => a.trim()).filter(a => a.length > 0)
+      : [];
 
     const { medicines, total } = await medicineService.getAllMedicines(
       skip,
@@ -109,7 +153,7 @@ export const getAllMedicines = async (
     res.status(200).json({
       success: true,
       data: {
-        medicines: medicines.map(formatMedicineResponse),
+        medicines: medicines.map(m => formatMedicineResponse(m, allergies)),
         pagination: {
           total,
           page,
@@ -191,6 +235,12 @@ export const searchMedicines = async (
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
+    // Parse allergies from query string
+    const allergiesParam = req.query.allergies as string;
+    const allergies = allergiesParam 
+      ? allergiesParam.split(",").map(a => a.trim()).filter(a => a.length > 0)
+      : [];
+
     if (!query) {
       res.status(400).json({
         success: false,
@@ -208,7 +258,7 @@ export const searchMedicines = async (
     res.status(200).json({
       success: true,
       data: {
-        medicines: medicines.map(formatMedicineResponse),
+        medicines: medicines.map(m => formatMedicineResponse(m, allergies)),
         pagination: {
           total,
           page,
@@ -243,7 +293,7 @@ export const getMedicinesByCategory = async (
     res.status(200).json({
       success: true,
       data: {
-        medicines: medicines.map(formatMedicineResponse),
+        medicines: medicines.map(m => formatMedicineResponse(m)),
         pagination: {
           total,
           page,
@@ -278,7 +328,7 @@ export const getMedicinesByBrand = async (
     res.status(200).json({
       success: true,
       data: {
-        medicines: medicines.map(formatMedicineResponse),
+        medicines: medicines.map(m => formatMedicineResponse(m)),
         pagination: {
           total,
           page,
