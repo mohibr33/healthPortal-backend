@@ -36,6 +36,7 @@ model User {
   mealPlans        MealPlan[]
   reviews          Review[]
   medicalChats     MedicalChat[]
+  interactionScans InteractionScan[]
 
   @@index([email])
   @@index([googleId])
@@ -331,4 +332,39 @@ model PendingRegistration {
   
   @@index([email])
   @@index([otpExpiry])
+}
+
+model InteractionScan {
+  id                  String   @id @default(uuid())
+  userId              String
+  
+  // Medicines that were scanned (stored as JSON array)
+  medicines           Json     // Array of MedicineInput objects
+  
+  // Results stored as JSON
+  drugInteractions    Json     // Array of DrugInteraction
+  allergyAlerts       Json     // Array of AllergyAlert
+  conditionConflicts  Json     // Array of ConditionConflict
+  regulatoryFlags     Json     // Array of RegulatoryFlag
+  safetyFlags         Json     // Array of SafetyFlag
+  
+  // Summary
+  summary             Json     // InteractionSummary object
+  
+  // AI Analysis
+  aiAnalysis          String?  @db.Text
+  
+  // Overall risk level for quick filtering
+  overallRisk         String   // "low", "medium", "high", "critical"
+  
+  // Health profile snapshot at time of scan
+  healthProfileUsed   Boolean  @default(false)
+  
+  createdAt           DateTime @default(now())
+  
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([overallRisk])
+  @@index([createdAt])
 }
