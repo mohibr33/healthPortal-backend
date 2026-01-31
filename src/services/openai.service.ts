@@ -1088,6 +1088,68 @@ FINAL VERIFICATION BEFORE RESPONDING
       ? requirements.join("\n")
       : "- No specific dietary restrictions, focus on balanced nutrition";
   }
+
+  async generateChatCompletion(messages: any[]): Promise<string> {
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4o-2024-08-06",
+        messages,
+        max_tokens: 16000,
+        temperature: 0.7,
+      });
+
+      const responseContent = completion.choices[0].message.content;
+
+      if (!responseContent) {
+        throw new Error("Empty response from AI");
+      }
+
+      return responseContent;
+    } catch (error: any) {
+      console.error("OpenAI Chat API Error:", error.message);
+
+      if (error.code === "invalid_api_key") {
+        throw new Error("OpenAI API key is invalid or not configured");
+      }
+
+      if (error.code === "insufficient_quota") {
+        throw new Error("OpenAI API quota exceeded. Please try again later.");
+      }
+
+      throw new Error(`OpenAI API error: ${error.message}`);
+    }
+  }
+
+  async generateTextCompletion(messages: any[]): Promise<string> {
+    try {
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-4-turbo",
+        messages,
+        max_tokens: 8000,
+        temperature: 0.7,
+      });
+
+      const responseContent = completion.choices[0].message.content;
+
+      if (!responseContent) {
+        throw new Error("Empty response from AI");
+      }
+
+      return responseContent;
+    } catch (error: any) {
+      console.error("OpenAI Text API Error:", error.message);
+
+      if (error.code === "invalid_api_key") {
+        throw new Error("OpenAI API key is invalid or not configured");
+      }
+
+      if (error.code === "insufficient_quota") {
+        throw new Error("OpenAI API quota exceeded. Please try again later.");
+      }
+
+      throw new Error(`OpenAI API error: ${error.message}`);
+    }
+  }
 }
 
 export default new OpenAIService();

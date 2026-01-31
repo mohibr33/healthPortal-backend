@@ -14,6 +14,7 @@ import mealPlanRoutes from "./routes/mealPlan.routes";
 import reviewRoutes from "./routes/review.routes";
 import medicalChatRoutes from "./routes/medicalChat.routes";
 import interactionRoutes from "./routes/interaction.routes";
+import labReportRoutes from "./routes/labReport.routes";
 import emailService from "./utils/email.util";
 
 // Load environment variables
@@ -46,6 +47,7 @@ app.use("/api/meal-planner", mealPlanRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/medical-chat", medicalChatRoutes);
 app.use("/api/interactions", interactionRoutes);
+app.use("/api/lab-reports", labReportRoutes);
 
 // Health check route
 app.get("/health", (_req: Request, res: Response) => {
@@ -152,6 +154,7 @@ app.listen(PORT, async () => {
   console.log(`⭐ Reviews API: http://localhost:${PORT}/api/reviews`);
   console.log(`💬 Medical Chat API: http://localhost:${PORT}/api/medical-chat`);
   console.log(`🔬 Interactions API: http://localhost:${PORT}/api/interactions`);
+  console.log(`📋 Lab Reports API: http://localhost:${PORT}/api/lab-reports`);
   console.log(`🔗 Google OAuth: http://localhost:${PORT}/api/auth/google`);
 
   // Verify email service connection

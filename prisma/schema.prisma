@@ -37,6 +37,7 @@ model User {
   reviews          Review[]
   medicalChats     MedicalChat[]
   interactionScans InteractionScan[]
+  labReports       LabReport[]
 
   @@index([email])
   @@index([googleId])
@@ -367,4 +368,56 @@ model InteractionScan {
   @@index([userId])
   @@index([overallRisk])
   @@index([createdAt])
+}
+
+model LabReport {
+  id                String    @id @default(uuid())
+  userId            String
+  title             String    @default("Lab Report")
+  
+  // File Upload
+  fileName          String
+  fileUrl           String
+  fileType          String    // mime type
+  fileSize          Int       // in bytes
+  
+  // AI Analysis Results (stored as JSON)
+  biomarkers        Json      // Array of Biomarker objects
+  summary           Json      // ReportSummary object
+  analysis          String?   @db.Text // Detailed AI analysis
+  
+  // Health Context Integration
+  healthProfileData Json?     // Snapshot of health profile at time of upload
+  flaggedConditions Json?     // Array of condition matches
+  flaggedMedications Json?    // Array of medication interactions
+  personalizedRecommendations String? @db.Text
+  
+  // Overall Assessment
+  overallStatus     String    @default("pending") // "pending", "normal", "abnormal", "critical"
+  criticalAlerts    Json?     // Array of critical value alerts
+  
+  // Sharing & Export
+  isSharedWithDoctor Boolean  @default(false)
+  sharedAt          DateTime?
+  doctorEmail       String?
+  
+  // Metadata
+  testDate          DateTime? // Date of the actual test (if available)
+  labName           String?   // Name of the laboratory
+  uploadedAt        DateTime  @default(now())
+  analyzedAt        DateTime?
+  
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([overallStatus])
+  @@index([uploadedAt])
+  @@index([testDate])
+}
+
+enum LabReportStatus {
+  pending
+  processing
+  completed
+  failed
 }
