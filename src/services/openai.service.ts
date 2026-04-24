@@ -1089,19 +1089,44 @@ FINAL VERIFICATION BEFORE RESPONDING
       : "- No specific dietary restrictions, focus on balanced nutrition";
   }
 
-  async generateChatCompletion(messages: any[]): Promise<string> {
+  async generateChatCompletion(messages: any[], forceJson: boolean = false): Promise<string> {
     try {
       const completion = await this.openai.chat.completions.create({
         model: "gpt-4o-2024-08-06",
         messages,
         max_tokens: 16000,
         temperature: 0.7,
+        ...(forceJson && {
+          response_format: { type: "json_object" },
+        }),
       });
 
       const responseContent = completion.choices[0].message.content;
 
       if (!responseContent) {
         throw new Error("Empty response from AI");
+      }
+
+      // Try to parse and validate JSON if forceJson is enabled
+      if (forceJson) {
+        try {
+          JSON.parse(responseContent);
+        } catch (jsonError: any) {
+          // If the response is not valid JSON, try to extract JSON from it
+          const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            return jsonMatch[0];
+          }
+          // Return a fallback valid JSON structure
+          console.error("Failed to parse AI response as JSON:", responseContent.substring(0, 100));
+          return JSON.stringify({
+            error: "Unable to analyze the lab report",
+            biomarkers: [],
+            summary: { overallStatus: "error", totalTests: 0, normalTests: 0, abnormalTests: 0, criticalTests: 0 },
+            analysis: "Analysis failed. Please try uploading a clearer image of your lab report.",
+            criticalAlerts: [],
+          });
+        }
       }
 
       return responseContent;

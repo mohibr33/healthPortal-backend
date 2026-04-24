@@ -746,4 +746,361 @@ Each meal includes:
 - Estimated cost in PKR
 - Health benefits specific to user's condition
 
+---
+
+## 14. Add Medicine (Medicine Adherence)
+
+**Method:** `POST`  
+**URL:** `http://localhost:5050/api/user-medicines`
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+Content-Type: application/json
+```
+
+**Body (JSON) - Example 1: Regular medicine with duration**
+
+```json
+{
+  "name": "Metformin",
+  "doctorName": "Dr. Ahmed Khan",
+  "duration": 30,
+  "isLifetime": false,
+  "intakeTimes": ["08:00", "20:00"],
+  "notes": "Take with food"
+}
+```
+
+**Body (JSON) - Example 2: Lifetime medicine**
+
+```json
+{
+  "name": "Aspirin",
+  "doctorName": "Dr. Sarah Ali",
+  "duration": 365,
+  "isLifetime": true,
+  "intakeTimes": ["09:00"],
+  "notes": "Morning dose only"
+}
+```
+
+**Expected Response:**
+
+```json
+{
+  "success": true,
+  "message": "Medicine added successfully",
+  "data": {
+    "id": "medicine-uuid",
+    "userId": "user-uuid",
+    "name": "Metformin",
+    "doctorName": "Dr. Ahmed Khan",
+    "duration": 30,
+    "isLifetime": false,
+    "intakeTimes": ["08:00", "20:00"],
+    "notes": "Take with food",
+    "isActive": true,
+    "createdAt": "2026-03-30T10:00:00.000Z",
+    "updatedAt": "2026-03-30T10:00:00.000Z"
+  }
+}
+```
+
+**Note:** When `isLifetime` is true, the system generates schedules for 30 days but marks it as lifetime.
+
+---
+
+## 15. Get All Medicines
+
+**Method:** `GET`  
+**URL:** `http://localhost:5050/api/user-medicines`
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+```
+
+**Query Parameters (optional):**
+
+- `includeInactive`: `true` or `false` (default: false)
+
+**Expected Response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "medicine-uuid",
+      "userId": "user-uuid",
+      "name": "Metformin",
+      "doctorName": "Dr. Ahmed Khan",
+      "duration": 30,
+      "isLifetime": false,
+      "intakeTimes": ["08:00", "20:00"],
+      "notes": "Take with food",
+      "isActive": true,
+      "createdAt": "2026-03-30T10:00:00.000Z",
+      "updatedAt": "2026-03-30T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## 16. Get Medicine by ID
+
+**Method:** `GET`  
+**URL:** `http://localhost:5050/api/user-medicines/{medicine-id}
+
+**Example:**
+
+```
+http://localhost:5050/api/user-medicines/abc123-def456
+```
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+```
+
+---
+
+## 17. Update Medicine
+
+**Method:** `PUT`  
+**URL:** `http://localhost:5050/api/user-medicines/{medicine-id}`
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+Content-Type: application/json
+```
+
+**Body (JSON):**
+
+```json
+{
+  "name": "Metformin Extended",
+  "intakeTimes": ["07:00", "19:00", "23:00"]
+}
+```
+
+---
+
+## 18. Delete Medicine
+
+**Method:** `DELETE`  
+**URL:** `http://localhost:5050/api/user-medicines/{medicine-id}`
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+```
+
+**Note:** This soft-deletes the medicine (sets `isActive` to false).
+
+---
+
+## 19. Get Reminders (Today's Doses)
+
+**Method:** `GET`  
+**URL:** `http://localhost:5050/api/user-medicines/reminders`
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+```
+
+**Query Parameters (optional):**
+
+- `date`: ISO date string (e.g., `2026-03-30`)
+
+**Expected Response:**
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "dose-uuid",
+      "medicineName": "Metformin",
+      "scheduledTime": "08:00",
+      "scheduledDate": "2026-03-30T00:00:00.000Z",
+      "status": "pending",
+      "takenAt": null
+    },
+    {
+      "id": "dose-uuid-2",
+      "medicineName": "Metformin",
+      "scheduledTime": "20:00",
+      "scheduledDate": "2026-03-30T00:00:00.000Z",
+      "status": "taken",
+      "takenAt": "2026-03-30T20:15:00.000Z"
+    }
+  ]
+}
+```
+
+**Dose Status Values:**
+
+- `pending` - Not yet taken
+- `taken` - User marked as taken
+- `missed` - Not taken within 4 hours of scheduled time
+
+---
+
+## 20. Mark Dose as Taken
+
+**Method:** `PATCH`  
+**URL:** `http://localhost:5050/api/user-medicines/{dose-id}/take`
+
+**Example:**
+
+```
+http://localhost:5050/api/user-medicines/abc123/take
+```
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+```
+
+**No Body Required**
+
+**Expected Response:**
+
+```json
+{
+  "success": true,
+  "message": "Dose marked as taken",
+  "data": {
+    "id": "dose-uuid",
+    "userMedicineId": "medicine-uuid",
+    "scheduledDate": "2026-03-30T00:00:00.000Z",
+    "scheduledTime": "08:00",
+    "status": "taken",
+    "takenAt": "2026-03-30T08:15:00.000Z",
+    "reminderSent": true,
+    "createdAt": "2026-03-30T00:00:00.000Z",
+    "updatedAt": "2026-03-30T08:15:00.000Z"
+  }
+}
+```
+
+---
+
+## 21. Get Dose History
+
+**Method:** `GET`  
+**URL:** `http://localhost:5050/api/user-medicines/history`
+
+**Headers:**
+
+```
+Authorization: Bearer YOUR_JWT_TOKEN_HERE
+```
+
+**Query Parameters (optional):**
+
+- `medicineId`: Filter by specific medicine
+- `limit`: Number of records (default: 50)
+
+**Example:**
+
+```
+http://localhost:5050/api/user-medicines/history?medicineId=abc123&limit=10
+```
+
+---
+
+## Complete Medicine Adherence Testing Flow
+
+### Step 1: Login & Get Token
+
+1. Login to get JWT token
+2. Copy the token for authorization header
+
+### Step 2: Add Medicines
+
+1. POST `/user-medicines` with first medicine
+2. POST `/user-medicines` with second medicine
+3. GET `/user-medicines` to verify
+
+### Step 3: View Reminders
+
+1. GET `/user-medicines/reminders` to see today's doses
+2. Note the `dose-id` from the response
+
+### Step 4: Test Dose Tracking
+
+1. PATCH `/user-medicines/{dose-id}/take` to mark as taken
+2. GET `/user-medicines/reminders` to see status changed to "taken"
+
+### Step 5: Test Missed Dose Logic
+
+1. Wait 4 hours (or set `MISSED_DOSE_HOURS=1` in .env for faster testing)
+2. Check reminders - doses should auto-mark as "missed"
+3. Server console will log missed dose notifications
+
+---
+
+## Testing the Scheduler
+
+The scheduler runs every 60 seconds and:
+
+1. **Checks for pending reminders** - If scheduled time has passed and reminder not sent, logs reminder (simulated SMS)
+2. **Marks missed doses** - If dose not taken within X hours (default 4), marks as "missed"
+
+**To test faster:**
+
+Add to backend `.env`:
+```env
+MISSED_DOSE_HOURS=1
+```
+
+Then restart the backend server.
+
+---
+
+## Sample Postman Collection (Updated)
+
+```
+Digital Health Assistant
+├── 1. Authentication
+│   ├── Register User
+│   ├── Verify OTP
+│   └── Login
+├── 2. Health Profile
+│   ├── Create/Update Profile
+│   ├── Get Profile
+│   └── Delete Profile
+├── 3. Meal Planner
+│   ├── Generate 7-Day Plan
+│   ├── Generate 30-Day Plan
+│   ├── Get My Plans
+│   ├── Get Active Plan
+│   ├── Get Plan by ID
+│   ├── Update Plan Status
+│   └── Delete Plan
+└── 4. Medicine Adherence
+    ├── Add Medicine
+    ├── Get All Medicines
+    ├── Get Medicine by ID
+    ├── Update Medicine
+    ├── Delete Medicine
+    ├── Get Reminders
+    ├── Mark Dose as Taken
+    └── Get Dose History
+```
+
 Happy Testing! 🚀

@@ -266,12 +266,34 @@ Return the response in EXACTLY this JSON format:
               },
             ],
           },
-        ]);
+        ], true);
       }
 
       const cleanedResponse = response.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
       
-      const result = JSON.parse(cleanedResponse);
+      let result;
+      try {
+        const parsed = JSON.parse(cleanedResponse);
+        result = parsed;
+      } catch (parseError: any) {
+        // Try to extract JSON from the response if it's wrapped in text
+        const jsonMatch = cleanedResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          result = JSON.parse(jsonMatch[0]);
+        } else {
+          // Return a minimal valid structure instead of throwing
+          console.error("Failed to parse response, using fallback");
+          return {
+            biomarkers: [],
+            summary: { overallStatus: "critical", totalBiomarkers: 0, normalCount: 0, abnormalCount: 0, criticalCount: 0, keyFindings: [] },
+            analysis: "Could not analyze the uploaded image. Please ensure it's a clear image of a lab report.",
+            criticalAlerts: [],
+            flaggedConditions: [],
+            flaggedMedications: [],
+            personalizedRecommendations: "Unable to generate recommendations due to analysis failure.",
+          };
+        }
+      }
 
       return result;
     } catch (error: any) {

@@ -15,7 +15,10 @@ import reviewRoutes from "./routes/review.routes";
 import medicalChatRoutes from "./routes/medicalChat.routes";
 import interactionRoutes from "./routes/interaction.routes";
 import labReportRoutes from "./routes/labReport.routes";
+import userMedicineRoutes from "./routes/userMedicine.routes";
+import dosageCalculationRoutes from "./routes/dosageCalculation.routes";
 import emailService from "./utils/email.util";
+import { startScheduler } from "./services/medicineScheduler.service";
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +51,8 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/medical-chat", medicalChatRoutes);
 app.use("/api/interactions", interactionRoutes);
 app.use("/api/lab-reports", labReportRoutes);
+app.use("/api/user-medicines", userMedicineRoutes);
+app.use("/api/dosage-calculations", dosageCalculationRoutes);
 
 // Health check route
 app.get("/health", (_req: Request, res: Response) => {
@@ -155,10 +160,14 @@ app.listen(PORT, async () => {
   console.log(`💬 Medical Chat API: http://localhost:${PORT}/api/medical-chat`);
   console.log(`🔬 Interactions API: http://localhost:${PORT}/api/interactions`);
   console.log(`📋 Lab Reports API: http://localhost:${PORT}/api/lab-reports`);
+  console.log(`💊 User Medicines API: http://localhost:${PORT}/api/user-medicines`);
   console.log(`🔗 Google OAuth: http://localhost:${PORT}/api/auth/google`);
 
   // Verify email service connection
   await emailService.verifyConnection();
+
+  // Start medicine reminder scheduler
+  startScheduler();
 });
 
 export default app;

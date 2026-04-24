@@ -33,8 +33,9 @@
     "openai": "^6.9.1",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "pdf-parse": "^2.4.5",
     "pdf-to-img": "^5.0.0",
-    "pdfjs-dist": "^5.4.530",
+    "sharp": "^0.34.5",
     "tesseract.js": "^7.0.0",
     "zod": "^4.2.1"
   },

@@ -38,6 +38,8 @@ model User {
   medicalChats     MedicalChat[]
   interactionScans InteractionScan[]
   labReports       LabReport[]
+  userMedicines    UserMedicine[]
+  dosageCalculations DosageCalculation[]
 
   @@index([email])
   @@index([googleId])
@@ -420,4 +422,87 @@ enum LabReportStatus {
   processing
   completed
   failed
+}
+
+model UserMedicine {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  doctorName  String?
+  duration    Int      // Number of days, -1 for lifetime
+  isLifetime  Boolean  @default(false)
+  intakeTimes String[] // Array of times like ["08:00", "20:00"]
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doses       DoseSchedule[]
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model MedicineGuideline {
+  id          String   @id @default(uuid())
+  medicineId  String?  // Reference to medicine in the medicines catalog (optional for global guidelines)
+  title       String
+  category    GuidelineCategory
+  content     String   @db.Text
+  severity    String?  // "low", "medium", "high" for warnings
+  isGlobal    Boolean  @default(false) // For general guidelines not tied to a specific medicine
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([medicineId])
+  @@index([category])
+}
+
+enum GuidelineCategory {
+  dosage
+  side_effects
+  interactions
+  storage
+}
+
+model DosageCalculation {
+  id                 String   @id @default(uuid())
+  userId             String
+  drugName           String
+  calculationMethod  String   // "Basic", "Weight-Based", "IV Flow Rate", "BSA-Based"
+  inputs             Json     // Stores the input values
+  result             String   // Final calculated dose
+  unit               String   // Unit of measurement
+  steps              String   @db.Text // Step-by-step calculation
+  createdAt          DateTime @default(now())
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model DoseSchedule {
+  id              String        @id @default(uuid())
+  userMedicineId  String
+  scheduledDate   DateTime
+  scheduledTime   String        // "08:00"
+  status          DoseStatus    @default(pending)
+  takenAt         DateTime?
+  reminderSent    Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  userMedicine    UserMedicine  @relation(fields: [userMedicineId], references: [id], onDelete: Cascade)
+
+  @@index([userMedicineId])
+  @@index([scheduledDate])
+  @@index([status])
+}
+
+enum DoseStatus {
+  pending
+  taken
+  missed
 }
