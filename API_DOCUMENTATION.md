@@ -140,25 +140,37 @@ Base Path: `/api/users`
 
 **Access:** Public
 
-**Description:** Register a new user account. Sends OTP to email for verification.
+**Description:** Register a new user account. User data is stored in a **PendingRegistration** table until email is verified. Sends OTP to email for verification (valid for 10 minutes).
+
+**Registration Flow:**
+1. User submits registration form
+2. Backend checks if email exists in verified `User` table
+3. If email already verified → Error: "User already exists"
+4. If not → Creates `PendingRegistration` record (replaces any existing pending registration for same email)
+5. Sends OTP email (10-minute expiry)
+6. User verifies OTP → Actual `User` record is created
 
 **Request Body:**
 
 ```json
 {
-  "name": "Ahmed Khan",
+  "firstName": "Ahmed",
+  "lastName": "Khan",
   "email": "ahmed.khan@example.com",
   "password": "Password123!",
-  "phone": "+923001234567"
+  "phone": "+923001234567",
+  "gender": "male"
 }
 ```
 
 **Validation Rules:**
 
-- `name`: Required, min 2 characters
+- `firstName`: Required, min 2 characters
+- `lastName`: Required, min 2 characters
 - `email`: Required, valid email format
 - `password`: Required, min 8 characters, must contain uppercase, lowercase, and number
 - `phone`: Optional, Pakistani format (+92xxx)
+- `gender`: Optional, enum: ["male", "female", "other"]
 
 **Success Response (201):**
 
@@ -167,9 +179,7 @@ Base Path: `/api/users`
   "success": true,
   "message": "Registration successful. Please verify your email with OTP.",
   "data": {
-    "userId": "cm3vwx123abc456def789",
-    "email": "ahmed.khan@example.com",
-    "name": "Ahmed Khan"
+    "email": "ahmed.khan@example.com"
   }
 }
 ```
@@ -179,9 +189,11 @@ Base Path: `/api/users`
 ```json
 {
   "success": false,
-  "message": "Email already registered"
+  "message": "User already exists with this email"
 }
 ```
+
+**Note:** If a user registers but doesn't verify, they can register again with the same email. The old pending registration will be replaced with a new one.
 
 ---
 
@@ -191,7 +203,7 @@ Base Path: `/api/users`
 
 **Access:** Public
 
-**Description:** Verify email using OTP sent during registration.
+**Description:** Verify email using OTP sent during registration. On successful verification, the user is moved from `PendingRegistration` to the actual `User` table and a welcome email is sent.
 
 **Request Body:**
 
@@ -207,7 +219,7 @@ Base Path: `/api/users`
 ```json
 {
   "success": true,
-  "message": "Email verified successfully"
+  "message": "Email verified successfully. You can now login."
 }
 ```
 
@@ -217,6 +229,51 @@ Base Path: `/api/users`
 {
   "success": false,
   "message": "Invalid or expired OTP"
+}
+```
+
+**Error Response (404):**
+
+```json
+{
+  "success": false,
+  "message": "No pending registration found for this email"
+}
+```
+
+---
+
+### 3. Resend OTP
+
+**Endpoint:** `POST /api/users/resend-otp`
+
+**Access:** Public
+
+**Description:** Resend OTP for pending registration. Generates a new OTP with fresh 10-minute expiry.
+
+**Request Body:**
+
+```json
+{
+  "email": "ahmed.khan@example.com"
+}
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "message": "OTP resent successfully. Please check your email."
+}
+```
+
+**Error Response (404):**
+
+```json
+{
+  "success": false,
+  "message": "No pending registration found for this email"
 }
 ```
 

@@ -10,7 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "seed:medicines": "ts-node scripts/seedMedicines.ts"
+    "seed:medicines": "ts-node scripts/seedMedicines.ts",
+    "seed:wellness": "ts-node scripts/seedWellnessResources.ts"
   },
   "keywords": [
     "health",
@@ -32,7 +33,13 @@
     "nodemailer": "^6.10.1",
     "openai": "^6.9.1",
     "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0"
+    "passport-google-oauth20": "^2.0.0",
+    "pdf-parse": "^2.4.5",
+    "pdf-to-img": "^5.0.0",
+    "pdfkit": "^0.18.0",
+    "sharp": "^0.34.5",
+    "tesseract.js": "^7.0.0",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -44,6 +51,8 @@
     "@types/nodemailer": "^6.4.14",
     "@types/passport": "^1.0.17",
     "@types/passport-google-oauth20": "^2.0.17",
+    "@types/pdfjs-dist": "^2.10.377",
+    "@types/pdfkit": "^0.17.6",
     "nodemon": "^3.0.2",
     "prisma": "^5.7.0",
     "ts-node": "^10.9.2",

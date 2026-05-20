@@ -36,6 +36,24 @@ model User {
   mealPlans        MealPlan[]
   reviews          Review[]
   medicalChats     MedicalChat[]
+  interactionScans InteractionScan[]
+  labReports       LabReport[]
+  userMedicines       UserMedicine[]
+  dosageCalculations  DosageCalculation[]
+  moodEntries         MoodEntry[]
+  stressAssessments   StressAssessment[]
+  anxietyScreenings   AnxietyScreening[]
+  journalEntries      WellnessJournal[]
+  meditationSessions  MeditationSession[]
+  communityPosts      CommunityPost[]
+  communityComments   CommunityComment[]
+  communityReactions  CommunityReaction[]
+  patientConditions   PatientCondition[]
+  dailyHealthLogs     DailyHealthLog[]
+  healthAlerts        HealthAlert[]
+  healthReports       HealthReport[]
+  rehabProgress       RehabProgress[]
+  rehabChecklists     RehabChecklist[]
 
   @@index([email])
   @@index([googleId])
@@ -63,9 +81,11 @@ model Article {
 
 model SupportTicket {
   id             String       @id @default(uuid())
+  ticketNumber   String       @unique
   userId         String
   subject        String       @db.VarChar(255)
   description    String       @db.Text
+  category       String       @default("General")
   status         TicketStatus @default(open)
   priority       Priority     @default(Medium)
   resolutionNote String?      @db.Text
@@ -109,6 +129,9 @@ model Medicine {
   drugInteractions          String?  @db.Text
   requiresPrescription      Boolean  @default(false)
   
+  // Data quality score (0-100) - higher means more complete data
+  dataCompletenessScore     Int      @default(0)
+  
   createdBy                 String
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
@@ -122,6 +145,7 @@ model Medicine {
   @@index([usedFor])
   @@index([generics])
   @@index([childCategory])
+  @@index([dataCompletenessScore(sort: Desc)])
 }
 
 model HealthProfile {
@@ -309,4 +333,536 @@ enum MessageType {
   text
   voice
   file
+}
+
+model PendingRegistration {
+  id          String   @id @default(uuid())
+  firstName   String
+  lastName    String
+  email       String   @unique
+  password    String
+  gender      String?
+  phone       String?
+  otp         String
+  otpExpiry   DateTime
+  createdAt   DateTime @default(now())
+  
+  @@index([email])
+  @@index([otpExpiry])
+}
+
+model InteractionScan {
+  id                  String   @id @default(uuid())
+  userId              String
+  
+  // Medicines that were scanned (stored as JSON array)
+  medicines           Json     // Array of MedicineInput objects
+  
+  // Results stored as JSON
+  drugInteractions    Json     // Array of DrugInteraction
+  allergyAlerts       Json     // Array of AllergyAlert
+  conditionConflicts  Json     // Array of ConditionConflict
+  regulatoryFlags     Json     // Array of RegulatoryFlag
+  safetyFlags         Json     // Array of SafetyFlag
+  
+  // Summary
+  summary             Json     // InteractionSummary object
+  
+  // AI Analysis
+  aiAnalysis          String?  @db.Text
+  
+  // Overall risk level for quick filtering
+  overallRisk         String   // "low", "medium", "high", "critical"
+  
+  // Health profile snapshot at time of scan
+  healthProfileUsed   Boolean  @default(false)
+  
+  createdAt           DateTime @default(now())
+  
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([overallRisk])
+  @@index([createdAt])
+}
+
+model LabReport {
+  id                String    @id @default(uuid())
+  userId            String
+  title             String    @default("Lab Report")
+  
+  // File Upload
+  fileName          String
+  fileUrl           String
+  fileType          String    // mime type
+  fileSize          Int       // in bytes
+  
+  // AI Analysis Results (stored as JSON)
+  biomarkers        Json      // Array of Biomarker objects
+  summary           Json      // ReportSummary object
+  analysis          String?   @db.Text // Detailed AI analysis
+  
+  // Health Context Integration
+  healthProfileData Json?     // Snapshot of health profile at time of upload
+  flaggedConditions Json?     // Array of condition matches
+  flaggedMedications Json?    // Array of medication interactions
+  personalizedRecommendations String? @db.Text
+  
+  // Overall Assessment
+  overallStatus     String    @default("pending") // "pending", "normal", "abnormal", "critical"
+  criticalAlerts    Json?     // Array of critical value alerts
+  
+  // Sharing & Export
+  isSharedWithDoctor Boolean  @default(false)
+  sharedAt          DateTime?
+  doctorEmail       String?
+  
+  // Metadata
+  testDate          DateTime? // Date of the actual test (if available)
+  labName           String?   // Name of the laboratory
+  uploadedAt        DateTime  @default(now())
+  analyzedAt        DateTime?
+  
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([overallStatus])
+  @@index([uploadedAt])
+  @@index([testDate])
+}
+
+enum LabReportStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+model UserMedicine {
+  id          String   @id @default(uuid())
+  userId      String
+  name        String
+  doctorName  String?
+  duration    Int      // Number of days, -1 for lifetime
+  isLifetime  Boolean  @default(false)
+  intakeTimes String[] // Array of times like ["08:00", "20:00"]
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  doses       DoseSchedule[]
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model MedicineGuideline {
+  id          String   @id @default(uuid())
+  medicineId  String?  // Reference to medicine in the medicines catalog (optional for global guidelines)
+  title       String
+  category    GuidelineCategory
+  content     String   @db.Text
+  severity    String?  // "low", "medium", "high" for warnings
+  isGlobal    Boolean  @default(false) // For general guidelines not tied to a specific medicine
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([medicineId])
+  @@index([category])
+}
+
+enum GuidelineCategory {
+  dosage
+  side_effects
+  interactions
+  storage
+}
+
+model DosageCalculation {
+  id                 String   @id @default(uuid())
+  userId             String
+  drugName           String
+  calculationMethod  String   // "Basic", "Weight-Based", "IV Flow Rate", "BSA-Based"
+  inputs             Json     // Stores the input values
+  result             String   // Final calculated dose
+  unit               String   // Unit of measurement
+  steps              String   @db.Text // Step-by-step calculation
+  createdAt          DateTime @default(now())
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model DoseSchedule {
+  id              String        @id @default(uuid())
+  userMedicineId  String
+  scheduledDate   DateTime
+  scheduledTime   String        // "08:00"
+  status          DoseStatus    @default(pending)
+  takenAt         DateTime?
+  reminderSent    Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  userMedicine    UserMedicine  @relation(fields: [userMedicineId], references: [id], onDelete: Cascade)
+
+  @@index([userMedicineId])
+  @@index([scheduledDate])
+  @@index([status])
+}
+
+enum DoseStatus {
+  pending
+  taken
+  missed
+}
+
+// ─── Stress & Wellness Module ────────────────────────────────────────────────
+
+enum MoodLevel {
+  very_bad
+  bad
+  neutral
+  good
+  very_good
+}
+
+enum StressLevel {
+  low
+  moderate
+  high
+  severe
+}
+
+enum ScreeningType {
+  phq9
+  gad7
+}
+
+enum ScreeningSeverity {
+  minimal
+  mild
+  moderate
+  moderately_severe
+  severe
+}
+
+enum MeditationType {
+  guided_meditation
+  breathing
+  relaxation
+  stress_relief
+}
+
+enum ResourceCategory {
+  mental_health
+  stress_management
+  self_care
+  healthy_lifestyle
+}
+
+model MoodEntry {
+  id        String    @id @default(uuid())
+  userId    String
+  mood      MoodLevel
+  note      String?   @db.Text
+  date      DateTime  @default(now())
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@index([userId, date])
+}
+
+model StressAssessment {
+  id        String      @id @default(uuid())
+  userId    String
+  score     Int         // 0-100
+  level     StressLevel
+  answers   Json        // Array of question/answer pairs
+  date      DateTime    @default(now())
+  createdAt DateTime    @default(now())
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@index([userId, date])
+}
+
+model AnxietyScreening {
+  id                  String             @id @default(uuid())
+  userId              String
+  testType            ScreeningType
+  score               Int                // 0-27 for PHQ-9, 0-21 for GAD-7
+  severity            ScreeningSeverity
+  answers             Json               // Array of question/answer pairs
+  recommendation      String?            @db.Text
+  aiGeneratedSuggestion String?           @db.Text
+  createdAt           DateTime           @default(now())
+
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([testType])
+  @@index([createdAt])
+}
+
+model WellnessJournal {
+  id          String          @id @default(uuid())
+  userId      String?
+  title       String?
+  content     String          @db.Text
+  isAnonymous Boolean         @default(false)
+  sentiment   Json?           // AI sentiment analysis result
+  analyzedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model MeditationSession {
+  id          String         @id @default(uuid())
+  userId      String
+  type        MeditationType
+  duration    Int            // in seconds
+  title       String
+  description String?        @db.Text
+  audioUrl    String?
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model WellnessResource {
+  id          String           @id @default(uuid())
+  title       String
+  slug        String           @unique
+  category    ResourceCategory
+  excerpt     String?          @db.Text
+  content     String           @db.Text
+  imageUrl    String?
+  author      String?
+  readTime    Int?             // in minutes
+  tags        Json?            // Array of strings
+  sourceLink  String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([slug])
+  @@index([category])
+  @@index([createdAt])
+}
+
+// ─── Anonymous Community ───────────────────────────────────────────────────
+
+enum PostCategory {
+  stress
+  anxiety
+  studies
+  work_pressure
+  general
+}
+
+enum PostReaction {
+  supportive
+  empathetic
+  grateful
+  hopeful
+  thoughtful
+  encouraging
+}
+
+model CommunityPost {
+  id            String        @id @default(uuid())
+  userId        String?
+  title         String?
+  content       String        @db.Text
+  category      PostCategory  @default(general)
+  isAnonymous   Boolean       @default(true)
+  reactionCount Int           @default(0)
+  commentCount  Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  comments      CommunityComment[]
+  reactions     CommunityReaction[]
+
+  @@index([category])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model CommunityComment {
+  id          String              @id @default(uuid())
+  postId      String
+  userId      String?
+  parentId    String?
+  content     String              @db.Text
+  isAnonymous Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+
+  post        CommunityPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user        User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent      CommunityComment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     CommunityComment[]  @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model CommunityReaction {
+  id       String        @id @default(uuid())
+  postId   String
+  userId   String
+  reaction PostReaction
+
+  post     CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user     User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+// ─── Chronic Disease Management ──────────────────────────────────────────────
+
+model PatientCondition {
+  id          String           @id @default(uuid())
+  userId      String
+  condition   String           // Diabetes, Hypertension, Asthma, Obesity, Heart Disease, Arthritis
+  diagnosedAt DateTime?
+  severity    String?          // mild, moderate, severe
+  notes       String?          @db.Text
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs        DailyHealthLog[]
+
+  @@index([userId])
+  @@index([condition])
+}
+
+model DailyHealthLog {
+  id                    String   @id @default(uuid())
+  userId                String
+  conditionId           String?
+  logDate               DateTime @default(now())
+
+  // Symptoms
+  symptoms              Json?    // Array: ["headache", "fatigue", "cough", ...]
+  painLevel             Int?     // 0-10
+  painLocation          Json?    // Array: ["knee", "lower back", "neck", ...]
+  mobilityIssues        Json?    // Array: ["difficulty walking", "stiffness", "limited range of motion", ...]
+  fatigueLevel          Int?     // 0-10
+
+  // Vitals
+  bloodPressureSystolic  Int?    // mmHg
+  bloodPressureDiastolic Int?    // mmHg
+  bloodSugar            Float?   // mg/dL
+  heartRate             Int?     // bpm
+  oxygenLevel           Float?   // SpO2 %
+  weight                Float?   // kg
+  temperature           Float?   // °C
+
+  // Medication
+  medicationTaken       Json?    // [{ name, dose, time }]
+
+  // Notes
+  notes                 String?  @db.Text
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  condition             PatientCondition? @relation(fields: [conditionId], references: [id])
+  alerts                HealthAlert[]
+
+  @@index([userId])
+  @@index([logDate])
+  @@index([userId, logDate])
+}
+
+model HealthAlert {
+  id        String   @id @default(uuid())
+  userId    String
+  logId     String?
+  type      String   // abnormal_reading, trend_warning
+  severity  String   // warning, critical
+  metric    String   // blood_pressure, blood_sugar, heart_rate, etc.
+  value     String   // The abnormal value
+  threshold String   // The threshold crossed
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  log       DailyHealthLog?  @relation(fields: [logId], references: [id])
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model HealthReport {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  dateRange Json     // { from: DateTime, to: DateTime }
+  data      Json     // Aggregated log data
+  pdfUrl    String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ─── Rehab & Recovery ────────────────────────────────────────────────────────
+
+model RehabProgress {
+  id             String   @id @default(uuid())
+  userId         String
+  exerciseId     String
+  completedCount Int      @default(0)
+  lastCompletedAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exerciseId])
+  @@index([userId])
+}
+
+model RehabChecklist {
+  id        String   @id @default(uuid())
+  userId    String
+  date      String   // ISO date string YYYY-MM-DD
+  items     Json     // Array of { id, label, completed }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
 }

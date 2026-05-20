@@ -22,6 +22,7 @@ export interface IMedicine {
   pregnancyCategory?: string | null;
   drugInteractions?: string | null;
   requiresPrescription: boolean;
+  dataCompletenessScore: number;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -102,6 +103,32 @@ export interface IMedicineResponse {
     pregnancyCategory?: string | null;
     drugInteractions?: string | null;
   };
+  allergyWarnings?: string[];
+  riskEvaluation?: IRiskEvaluation;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Risk Evaluation Types
+export type RiskLevel = "safe" | "caution" | "high_risk";
+
+export interface IRiskFactor {
+  type: "allergy" | "condition" | "medication" | "pregnancy" | "side_effect";
+  severity: RiskLevel;
+  match: string;
+  message: string;
+}
+
+export interface IRiskEvaluation {
+  level: RiskLevel;
+  message: string;
+  factors: IRiskFactor[];
+  hasProfile: boolean;
+}
+
+export interface IHealthProfileForRisk {
+  allergies?: string[];
+  medicalConditions?: string[];
+  medications?: string;
+  specialConditions?: string[];
 }

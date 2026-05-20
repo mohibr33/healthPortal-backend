@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, IRouter } from "express";
 import userController from "../controllers/user.controller";
 import { authenticateToken } from "../middlewares/auth.middleware";
 import {
@@ -10,7 +10,7 @@ import {
 } from "../middlewares/validation.middleware";
 import { handleValidationErrors } from "../middlewares/errorHandler.middleware";
 
-const router = Router();
+const router: IRouter = Router();
 
 // Public routes
 router.post(
@@ -30,6 +30,10 @@ router.post(
   verifyOTPValidation,
   handleValidationErrors,
   userController.verifyOTP.bind(userController)
+);
+router.post(
+  "/resend-otp",
+  userController.resendOTP.bind(userController)
 );
 router.post(
   "/request-password-reset",

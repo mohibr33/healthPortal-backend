@@ -10,12 +10,12 @@ export const createTicket = async (
   next: NextFunction
 ) => {
   try {
-    const { subject, description, priority } = req.body;
+    const { subject, description, category, priority } = req.body;
     const userId = (req as IAuthRequest).userId!;
 
     // Create ticket
     const ticket = await ticketService.createTicket(
-      { subject, description, priority },
+      { subject, description, category, priority },
       userId
     );
 

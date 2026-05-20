@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response, NextFunction, RequestHandler } from "express";
 import { IAuthRequest } from "../types/user.types";
 import medicalChatService from "../services/medicalChat.service";
 import multer from "multer";
@@ -70,18 +70,18 @@ const audioFileFilter = (_req: Request, file: Express.Multer.File, cb: multer.Fi
 };
 
 // Middleware for multiple file uploads (up to 5 files)
-export const uploadFiles = multer({
+export const uploadFiles: RequestHandler = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: documentFileFilter,
-}).array('files', 5);
+}).array('files', 5) as RequestHandler;
 
 // Middleware for single audio file upload
-export const uploadAudio = multer({
+export const uploadAudio: RequestHandler = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: audioFileFilter,
-}).single('audio');
+}).single('audio') as RequestHandler;
 
 // Legacy middleware (deprecated)
 export const uploadMiddleware = multer({

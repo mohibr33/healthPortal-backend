@@ -1,7 +1,14 @@
 import express, { Router } from "express";
 import * as medicineController from "../controllers/medicine.controller";
+import { authenticateToken } from "../middlewares/auth.middleware";
 
 const router: Router = express.Router();
+
+// Authenticated routes - with risk evaluation based on health profile
+// IMPORTANT: These must come BEFORE /:id to prevent "with-risk" being matched as an ID
+router.get("/with-risk/list", authenticateToken, medicineController.getAllMedicinesWithRisk);
+router.get("/with-risk/search", authenticateToken, medicineController.searchMedicinesWithRisk);
+router.get("/with-risk/slug/:slug", authenticateToken, medicineController.getMedicineBySlugWithRisk);
 
 // Public routes - no authentication required
 router.get("/", medicineController.getAllMedicines);

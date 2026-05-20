@@ -24,9 +24,12 @@ export const authenticateToken = (
     (req as IAuthRequest).email = decoded.email;
     next();
   } catch (error) {
-    return res.status(403).json({
-      success: false,
-      message: "Invalid or expired token",
-    });
+      return res.status(403).json({
+        success: false,
+        message: "Invalid or expired token",
+      });
   }
 };
+
+export default authenticateToken;
+

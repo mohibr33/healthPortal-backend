@@ -143,6 +143,6 @@ export const generateMealPlanValidation = [
     .trim()
     .notEmpty()
     .withMessage("Duration is required")
-    .isIn(["7", "30"])
-    .withMessage("Duration must be either 7 or 30 days"),
+    .isIn(["7"])
+    .withMessage("Duration must be 7 days"),
 ];

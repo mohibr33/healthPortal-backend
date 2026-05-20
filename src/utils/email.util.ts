@@ -670,6 +670,7 @@ If you have any further questions or need additional assistance, please feel fre
       html,
     });
   }
+
 }
 
 export default new EmailService();
