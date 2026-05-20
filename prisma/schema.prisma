@@ -38,8 +38,22 @@ model User {
   medicalChats     MedicalChat[]
   interactionScans InteractionScan[]
   labReports       LabReport[]
-  userMedicines    UserMedicine[]
-  dosageCalculations DosageCalculation[]
+  userMedicines       UserMedicine[]
+  dosageCalculations  DosageCalculation[]
+  moodEntries         MoodEntry[]
+  stressAssessments   StressAssessment[]
+  anxietyScreenings   AnxietyScreening[]
+  journalEntries      WellnessJournal[]
+  meditationSessions  MeditationSession[]
+  communityPosts      CommunityPost[]
+  communityComments   CommunityComment[]
+  communityReactions  CommunityReaction[]
+  patientConditions   PatientCondition[]
+  dailyHealthLogs     DailyHealthLog[]
+  healthAlerts        HealthAlert[]
+  healthReports       HealthReport[]
+  rehabProgress       RehabProgress[]
+  rehabChecklists     RehabChecklist[]
 
   @@index([email])
   @@index([googleId])
@@ -505,4 +519,350 @@ enum DoseStatus {
   pending
   taken
   missed
+}
+
+// ─── Stress & Wellness Module ────────────────────────────────────────────────
+
+enum MoodLevel {
+  very_bad
+  bad
+  neutral
+  good
+  very_good
+}
+
+enum StressLevel {
+  low
+  moderate
+  high
+  severe
+}
+
+enum ScreeningType {
+  phq9
+  gad7
+}
+
+enum ScreeningSeverity {
+  minimal
+  mild
+  moderate
+  moderately_severe
+  severe
+}
+
+enum MeditationType {
+  guided_meditation
+  breathing
+  relaxation
+  stress_relief
+}
+
+enum ResourceCategory {
+  mental_health
+  stress_management
+  self_care
+  healthy_lifestyle
+}
+
+model MoodEntry {
+  id        String    @id @default(uuid())
+  userId    String
+  mood      MoodLevel
+  note      String?   @db.Text
+  date      DateTime  @default(now())
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@index([userId, date])
+}
+
+model StressAssessment {
+  id        String      @id @default(uuid())
+  userId    String
+  score     Int         // 0-100
+  level     StressLevel
+  answers   Json        // Array of question/answer pairs
+  date      DateTime    @default(now())
+  createdAt DateTime    @default(now())
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@index([userId, date])
+}
+
+model AnxietyScreening {
+  id                  String             @id @default(uuid())
+  userId              String
+  testType            ScreeningType
+  score               Int                // 0-27 for PHQ-9, 0-21 for GAD-7
+  severity            ScreeningSeverity
+  answers             Json               // Array of question/answer pairs
+  recommendation      String?            @db.Text
+  aiGeneratedSuggestion String?           @db.Text
+  createdAt           DateTime           @default(now())
+
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([testType])
+  @@index([createdAt])
+}
+
+model WellnessJournal {
+  id          String          @id @default(uuid())
+  userId      String?
+  title       String?
+  content     String          @db.Text
+  isAnonymous Boolean         @default(false)
+  sentiment   Json?           // AI sentiment analysis result
+  analyzedAt  DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  user        User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model MeditationSession {
+  id          String         @id @default(uuid())
+  userId      String
+  type        MeditationType
+  duration    Int            // in seconds
+  title       String
+  description String?        @db.Text
+  audioUrl    String?
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model WellnessResource {
+  id          String           @id @default(uuid())
+  title       String
+  slug        String           @unique
+  category    ResourceCategory
+  excerpt     String?          @db.Text
+  content     String           @db.Text
+  imageUrl    String?
+  author      String?
+  readTime    Int?             // in minutes
+  tags        Json?            // Array of strings
+  sourceLink  String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([slug])
+  @@index([category])
+  @@index([createdAt])
+}
+
+// ─── Anonymous Community ───────────────────────────────────────────────────
+
+enum PostCategory {
+  stress
+  anxiety
+  studies
+  work_pressure
+  general
+}
+
+enum PostReaction {
+  supportive
+  empathetic
+  grateful
+  hopeful
+  thoughtful
+  encouraging
+}
+
+model CommunityPost {
+  id            String        @id @default(uuid())
+  userId        String?
+  title         String?
+  content       String        @db.Text
+  category      PostCategory  @default(general)
+  isAnonymous   Boolean       @default(true)
+  reactionCount Int           @default(0)
+  commentCount  Int           @default(0)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user          User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  comments      CommunityComment[]
+  reactions     CommunityReaction[]
+
+  @@index([category])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model CommunityComment {
+  id          String              @id @default(uuid())
+  postId      String
+  userId      String?
+  parentId    String?
+  content     String              @db.Text
+  isAnonymous Boolean             @default(true)
+  createdAt   DateTime            @default(now())
+
+  post        CommunityPost       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user        User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parent      CommunityComment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     CommunityComment[]  @relation("CommentReplies")
+
+  @@index([postId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model CommunityReaction {
+  id       String        @id @default(uuid())
+  postId   String
+  userId   String
+  reaction PostReaction
+
+  post     CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user     User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([postId, userId])
+  @@index([postId])
+}
+
+// ─── Chronic Disease Management ──────────────────────────────────────────────
+
+model PatientCondition {
+  id          String           @id @default(uuid())
+  userId      String
+  condition   String           // Diabetes, Hypertension, Asthma, Obesity, Heart Disease, Arthritis
+  diagnosedAt DateTime?
+  severity    String?          // mild, moderate, severe
+  notes       String?          @db.Text
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs        DailyHealthLog[]
+
+  @@index([userId])
+  @@index([condition])
+}
+
+model DailyHealthLog {
+  id                    String   @id @default(uuid())
+  userId                String
+  conditionId           String?
+  logDate               DateTime @default(now())
+
+  // Symptoms
+  symptoms              Json?    // Array: ["headache", "fatigue", "cough", ...]
+  painLevel             Int?     // 0-10
+  painLocation          Json?    // Array: ["knee", "lower back", "neck", ...]
+  mobilityIssues        Json?    // Array: ["difficulty walking", "stiffness", "limited range of motion", ...]
+  fatigueLevel          Int?     // 0-10
+
+  // Vitals
+  bloodPressureSystolic  Int?    // mmHg
+  bloodPressureDiastolic Int?    // mmHg
+  bloodSugar            Float?   // mg/dL
+  heartRate             Int?     // bpm
+  oxygenLevel           Float?   // SpO2 %
+  weight                Float?   // kg
+  temperature           Float?   // °C
+
+  // Medication
+  medicationTaken       Json?    // [{ name, dose, time }]
+
+  // Notes
+  notes                 String?  @db.Text
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user                  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  condition             PatientCondition? @relation(fields: [conditionId], references: [id])
+  alerts                HealthAlert[]
+
+  @@index([userId])
+  @@index([logDate])
+  @@index([userId, logDate])
+}
+
+model HealthAlert {
+  id        String   @id @default(uuid())
+  userId    String
+  logId     String?
+  type      String   // abnormal_reading, trend_warning
+  severity  String   // warning, critical
+  metric    String   // blood_pressure, blood_sugar, heart_rate, etc.
+  value     String   // The abnormal value
+  threshold String   // The threshold crossed
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  log       DailyHealthLog?  @relation(fields: [logId], references: [id])
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model HealthReport {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  dateRange Json     // { from: DateTime, to: DateTime }
+  data      Json     // Aggregated log data
+  pdfUrl    String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ─── Rehab & Recovery ────────────────────────────────────────────────────────
+
+model RehabProgress {
+  id             String   @id @default(uuid())
+  userId         String
+  exerciseId     String
+  completedCount Int      @default(0)
+  lastCompletedAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exerciseId])
+  @@index([userId])
+}
+
+model RehabChecklist {
+  id        String   @id @default(uuid())
+  userId    String
+  date      String   // ISO date string YYYY-MM-DD
+  items     Json     // Array of { id, label, completed }
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
 }

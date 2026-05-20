@@ -17,6 +17,10 @@ import interactionRoutes from "./routes/interaction.routes";
 import labReportRoutes from "./routes/labReport.routes";
 import userMedicineRoutes from "./routes/userMedicine.routes";
 import dosageCalculationRoutes from "./routes/dosageCalculation.routes";
+import stressWellnessRoutes from "./routes/stressWellness.routes";
+import communityRoutes from "./routes/community.routes";
+import chronicDiseaseRoutes from "./routes/chronicDisease.routes";
+import rehabRoutes from "./routes/rehab.routes";
 import emailService from "./utils/email.util";
 import { startScheduler } from "./services/medicineScheduler.service";
 
@@ -53,6 +57,10 @@ app.use("/api/interactions", interactionRoutes);
 app.use("/api/lab-reports", labReportRoutes);
 app.use("/api/user-medicines", userMedicineRoutes);
 app.use("/api/dosage-calculations", dosageCalculationRoutes);
+app.use("/api/stress-wellness", stressWellnessRoutes);
+app.use("/api/chronic-disease", chronicDiseaseRoutes);
+app.use("/api/rehab", rehabRoutes);
+app.use("/api/community", communityRoutes);
 
 // Health check route
 app.get("/health", (_req: Request, res: Response) => {
